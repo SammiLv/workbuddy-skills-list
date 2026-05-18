@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SKILLS_DIR="${HOME}/.codex/skills"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+OUTPUT_FILE="${SKILL_DIR}/LOCAL_SKILLS_INDEX.md"
+TIMESTAMP="$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S %Z')"
+TMP_FILE="$(mktemp)"
+
+cleanup() {
+  rm -f "$TMP_FILE"
+}
+
+trap cleanup EXIT
+
+overview_for() {
+  case "$1" in
+    daily-codex-work-summary)
+      printf '根据本地 Codex 会话记录生成中文工作日报，汇总指定日期完成的任务、产出物、验证情况和待跟进事项。'
+      ;;
+    dingtalk-personal-weekly-report)
+      printf '基于钉钉聊天、群聊、@消息、日程和相关文档生成个人周报，并按固定四类栏目组织内容。'
+      ;;
+    personal-skill-inventory)
+      printf '生成个人本地 skills 清单，记录每个 skill 的名称、概述、直接触发器和文件路径。'
+      ;;
+    reserve-dingtalk-meeting)
+      printf '根据会议时间与参会人自动创建钉钉会议：查询会议室空闲、选择合适房间、完成预订与邀请。'
+      ;;
+    产品部周报汇总)
+      printf '将收集到的周报先归档为钉钉文档，再按固定模板汇总生成产品部部门周报。'
+      ;;
+    *)
+      printf '该 skill 已被识别，但尚未配置中文概述；请根据对应 SKILL.md 补充。'
+      ;;
+  esac
+}
+
+markdown_escape() {
+  printf '%s' "$1" | sed 's/|/\\|/g'
+}
+
+inline_code_escape() {
+  printf '%s' "$1" | sed 's/`/\\`/g'
+}
+
+printf '开始执行本地 Skills 清单自动化任务\n'
+printf '扫描目录：%s\n' "$SKILLS_DIR"
+printf '目标文件：%s\n' "$OUTPUT_FILE"
+
+{
+  printf '# 个人本地 Skills 清单\n\n'
+  printf '最后更新时间：%s\n\n' "$TIMESTAMP"
+  printf '本文件记录当前个人创建或安装在本地的 Codex skills。范围为 `%s` 下的个人 skills，不包含系统内置 skills 和插件 skills。\n\n' "$SKILLS_DIR"
+  printf -- '- 触发器约定：使用 `$skill-name` 显式调用本地 skill。\n'
+  printf -- '- 范围：仅个人本地 skills。\n'
+  printf -- '- 排除：系统内置 skills 和插件 skills。\n\n'
+  printf '## Skill 列表\n\n'
+
+  found_count=0
+
+  while IFS= read -r skill_dir; do
+    skill_file="${skill_dir}/SKILL.md"
+    [ -f "$skill_file" ] || continue
+
+    name="$(sed -n 's/^name:[[:space:]]*//p' "$skill_file" | head -n 1)"
+    if [ -z "$name" ]; then
+      name="$(basename "$skill_dir")"
+    fi
+
+    overview="$(overview_for "$name")"
+    trigger="\$${name}"
+
+    printf '### %s\n\n' "$name"
+    printf -- '- 触发器：`%s`\n' "$(inline_code_escape "$trigger")"
+    printf -- '- 路径：`%s`\n' "$(inline_code_escape "$skill_file")"
+    printf -- '- 概述：%s\n\n' "$(markdown_escape "$overview")"
+
+    found_count=$((found_count + 1))
+  done < <(find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d ! -name '.system' | sort)
+} > "$TMP_FILE"
+
+mv "$TMP_FILE" "$OUTPUT_FILE"
+
+printf '识别到个人 skills 数量：%s\n' "$found_count"
+printf '生成中文索引内容\n'
+printf '保存目标文件：%s\n' "$OUTPUT_FILE"
+printf '刷新最后更新时间：%s\n' "$TIMESTAMP"
+printf '校验结果：已生成中文格式 Markdown\n'
+printf '本地 Skills 清单自动化任务执行完成\n'

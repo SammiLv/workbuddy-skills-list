@@ -1,0 +1,4 @@
+interface:
+  display_name: "Personal Skill Inventory"
+  short_description: "List personal skills with summaries and triggers"
+  default_prompt: "Use $personal-skill-inventory to show my personal Codex skills, summaries, and triggers."

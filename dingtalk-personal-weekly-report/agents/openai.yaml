@@ -1,0 +1,7 @@
+interface:
+  display_name: "钉钉周工作总结（computeruse）"
+  short_description: "把钉钉沟通整理成个人周报与台账"
+  default_prompt: "Use $dingtalk-personal-weekly-report to turn DingTalk communication into a four-section personal weekly report with an optional traceable ledger."
+
+policy:
+  allow_implicit_invocation: true

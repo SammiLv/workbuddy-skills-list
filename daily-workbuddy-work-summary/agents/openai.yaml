@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex每日工作总结"
+  short_description: "总结最近一个有工作的 Codex 日期"
+  default_prompt: "Use $daily-codex-work-summary to summarize the most recent prior day with concrete Codex work in this conversation, starting from yesterday."

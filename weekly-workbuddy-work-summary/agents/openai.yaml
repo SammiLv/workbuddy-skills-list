@@ -1,0 +1,7 @@
+interface:
+  display_name: "Codex 工作周报"
+  short_description: "汇总本周 Codex 工作记录"
+  default_prompt: "Use $weekly-codex-work-summary to summarize what I worked on in Codex this week."
+
+policy:
+  allow_implicit_invocation: true

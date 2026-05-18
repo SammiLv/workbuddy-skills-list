@@ -1,0 +1,4 @@
+interface:
+  display_name: "预约会议"
+  short_description: "根据会议时间和邀请人自动预约钉钉会议并选择合适会议室"
+  default_prompt: "Use $预约会议 to create a DingTalk meeting from the meeting time and invited people, automatically selecting an available room."
