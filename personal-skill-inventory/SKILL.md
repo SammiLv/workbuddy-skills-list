@@ -1,25 +1,25 @@
 ---
 name: 个人技能清单
-description: Use when the user wants to list, audit, summarize, document, or update a registry of their personal Codex skills, including each skill's name, location, overview, and trigger conditions. Trigger this skill for requests such as "我有哪些个人 skill", "记录我创建的 skills", "列出每个 skill 的概述和触发器", "整理 skill 清单", or "更新个人 skill 目录".
+description: Use when the user wants to list, audit, summarize, document, or update a registry of their personal WorkBuddy skills, including each skill's name, location, overview, and trigger conditions. Trigger this skill for requests such as "我有哪些个人 skill", "记录我创建的 skills", "列出每个 skill 的概述和触发器", "整理 skill 清单", or "更新个人 skill 目录".
 ---
 
 # Personal Skill Inventory
 
 ## Overview
 
-Create a current inventory of the user's personal Codex skills. The inventory should show which skills exist, what each skill does, where it lives, and what user requests should trigger it.
+Create a current inventory of the user's personal WorkBuddy skills. The inventory should show which skills exist, what each skill does, where it lives, and what user requests should trigger it.
 
 ## Workflow
 
 1. Locate personal skills.
-   - Default to `${CODEX_HOME:-~/.codex}/skills`.
+   - Default to `~/.workbuddy/skills`.
    - Treat immediate child folders with a `SKILL.md` file as personal skills.
    - Exclude `.system` and plugin cache folders unless the user explicitly asks to include system or plugin-provided skills.
 
 2. Generate the inventory.
    - Run `scripts/generate_local_skills_index.sh` when updating the saved index file from an automation or manual request.
-   - The script scans `${CODEX_HOME:-~/.codex}/skills`, excludes `.system`, prints visible progress, and writes Chinese-format Markdown to `LOCAL_SKILLS_INDEX.md`.
-   - When the user asks to generate or save the inventory file, write it to `LOCAL_SKILLS_INDEX.md` in this skill's current directory: `/Users/sammilv/.codex/skills/personal-skill-inventory/LOCAL_SKILLS_INDEX.md`.
+   - The script scans `~/.workbuddy/skills`, excludes `.system`, prints visible progress, and writes Chinese-format Markdown to `LOCAL_SKILLS_INDEX.md`.
+   - When the user asks to generate or save the inventory file, write it to `LOCAL_SKILLS_INDEX.md` in this skill's current directory: `/Users/sammilv/.workbuddy/skills/personal-skill-inventory/LOCAL_SKILLS_INDEX.md`.
    - Do not create extra helper scripts unless the single shell script cannot support the requested change.
    - Do not write raw English script output directly into `LOCAL_SKILLS_INDEX.md`.
 

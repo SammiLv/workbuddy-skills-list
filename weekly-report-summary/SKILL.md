@@ -1,602 +1,526 @@
 ---
 name: 产品部周报汇总
-description: Use when the user invokes $产品部周报汇总 to archive received weekly reports into DingTalk docs first, then summarize them into a department weekly report using the fixed 产品部周报汇总 template.
+description: 当用户调用 $产品部周报汇总 时触发。先将收到的周报归档为钉钉文档，再按"产品部周报汇总"模板生成部门周报汇总。
+agent_created: true
 ---
 
 # 产品部周报汇总
 
-## Canonical Invocation
+## 调用方式
 
-The canonical way to invoke this skill is:
+标准调用：`$产品部周报汇总`
 
-`$产品部周报汇总`
+触发短语：`【产品部周报汇总】`、`产品部周报汇总`
 
-For this workflow, the default fixed template is:
+除非用户明确指定其他模板，否则 `$产品部周报汇总` 等同于：`$产品部周报汇总，按"产品部周报汇总"模板执行`
 
-`产品部周报汇总`
+收到触发指令后，立即使用以下默认参数执行，不要再向用户确认输入参数，除非必要的钉钉文档/文件夹无法访问。
 
-Unless the user explicitly asks for another template, treat `$产品部周报汇总` as:
+---
 
-`$产品部周报汇总，按“产品部周报汇总”模板执行`
+## 一、Skill 功能概述
 
-## Purpose
+本 Skill 用于处理产品部收到的多份周报，完成两件事：
 
-Use this skill to process multiple received work reports and produce:
+1. **归档个人周报**：将每份收到的周报完整归档为独立的钉钉文档
+2. **生成部门周报汇总**：基于指定的主管周报模板，从归档的周报中提取、清洗、统计、汇总，生成一份部门级周报
 
-1. archived individual DingTalk docs for each received report
-2. a department summary doc based on a designated supervisor weekly report template
+适用场景：
+- 查询指定日期范围内收到的周报
+- 归档每份周报为钉钉文档
+- 排除指定人员的周报
+- 以主管周报作为结构模板
+- 从其他周报中提取内容进行汇总
+- 额外解析吕夏苗个人周工作总结文档，填充「二、本周个人工作总结」
 
-This skill is designed for workflows like:
+---
 
-- query received weekly reports for a specific day or range
-- archive each report as a DingTalk doc
-- exclude a specified person's report from summary inputs
-- use a supervisor report as the structural template
-- extract, clean, count, and summarize the rest into one department report
+## 二、Skill 全局规则
 
-## Inputs
+### 2.1 输入参数
 
-For ad-hoc workflows, confirm these inputs before running if they are not already supplied by a preset:
+对于固定预设 `产品部周报汇总`，不再暂停确认以下输入，直接使用默认值执行：
 
-- the date range to query
-- the target DingTalk folder for archived reports and summary output
-- the supervisor weekly report or finalized summary template to use
-- any people to exclude from summary inputs
-- any tables that must be shown as totals only
-- any custom filtering rules for demand-detail tables
+| 参数 | 默认值 |
+|------|--------|
+| 查询日期范围 | 当前会话日期（北京时间）当天的收到周报 |
+| 归档目标文件夹 | `https://alidocs.dingtalk.com/i/nodes/D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP` |
+| 汇总模板文档 | `产品部部门周报汇总（模板）` |
+| 排除人员 | 吕夏苗的周报不归档、不作为部门汇总输入 |
+| 允许的发件人 | `孙圣宇`、`张永翔`、`邓智泳`、`王俊秀` |
 
-For the fixed preset `产品部周报汇总`, do not pause to reconfirm these inputs. Use the Fixed Defaults below and continue execution unless a required DingTalk report, folder, or template is inaccessible after lookup.
+如果用户已确认过最终版部门周报汇总模板文档，优先使用该模板文档作为模板来源，而不是每次从主管周报重新生成模板结构。
 
-If the user has already confirmed a finalized department-summary template doc for this workflow, prefer that finalized DingTalk doc as the template source instead of regenerating the template structure from a supervisor weekly report each run.
+### 2.2 时区规则
 
-## Timezone Rule
+所有日期和日边界逻辑必须使用北京时间：`Asia/Shanghai`（`UTC+08:00`）。
 
-All date and day-boundary logic in this skill must use Beijing time: `Asia/Shanghai` (`UTC+08:00`).
+适用于：
+- 判断「今天」「昨天」等相对日期
+- 将钉钉毫秒时间戳转换为日历日期
+- 选择回退日期
+- 显示最终的 `汇总日期` 和 `源周报日期`
 
-This applies to:
+**`汇总日期` 规则：**
+- 永远是当前执行日期的北京时间
+- 不是周报发送日期，也不是内容覆盖日期
+- 即使源周报和主管周报是更早发送的，`汇总日期` 仍用当天
 
-- deciding what counts as `today`, `yesterday`, and the current target day
-- converting DingTalk millisecond timestamps into calendar dates
-- choosing the fallback date
-- displaying the final `汇总日期` in the generated department weekly report
-- displaying the final `源周报日期` in the generated department weekly report
+**`源周报日期` 规则：**
+- 必须从选中的源周报实际时间戳（转换为 `Asia/Shanghai`）推导
+- 不得从回退锚点日期、查询窗口起始日期、周报标题中的周标签或 UTC 日期推导
+- 如果所有选中的在范围周报落在同一个北京日期，显示该确切日期
+- 如果跨越多个北京日期，显示明确的日期范围
 
-`汇总日期` is not the report send date and not the content coverage date.
+**禁止：** 当源时间戳意图为中国标准时间时，绝不能从 UTC 日边界推导报告日期。
 
-`源周报日期` is the Beijing-calendar date of the actual selected source reports after converting each selected DingTalk timestamp to `Asia/Shanghai`.
+### 2.3 强制执行规则
 
-Hard rule for `源周报日期`:
+#### 2.3.1 必须真正汇总
 
-- always derive it from the selected source reports' actual timestamps in `Asia/Shanghai`
-- never derive it from the fallback search anchor date, query window start date, report week label, or UTC date
-- if all selected in-scope received reports fall on the same Beijing calendar date, display that exact date as `源周报日期`
-- if selected source reports span multiple Beijing dates, display an explicit range in Beijing dates
+仅复制或重建模板文档本身永远不够。每次执行必须产生从选中的个人周报真正推导出的部门汇总。
 
-Hard rule for this workflow:
+**强制执行基线：**
+1. 先识别在范围内的个人周报
+2. 再获取并完整阅读每份在范围内的周报
+3. 再从每份源周报中提取实际的段落、列表和表格数据
+4. 再从提取的源周报计算部门级汇总
+5. 再将计算结果写回汇总文档，同时保留已批准的模板结构和呈现
 
-- `汇总日期` must always be the current execution date in Beijing time
-- even if received reports and the supervisor weekly report were sent on an earlier date, keep `汇总日期` as today's Beijing-time calendar date
-- when needed, separately explain the actual send date of the source reports and the coverage date of the reported work
+**禁止的捷径：** 不得将 `产品部部门周报汇总（模板）` 或任何之前的汇总文档直接复制后声称为已完成，除非其内容已针对当前选中的源周报重新验证和更新。
 
-Never derive report dates from UTC day boundaries when the source timestamps are intended for China Standard Time.
+#### 2.3.2 来源可追溯规则
 
-## Hard Rules
+生成的部门汇总必须可追溯到来源：
 
-### 0. Full-summary execution rule
+- 汇总中每个填充的段落、列表项和表格行必须来自一份或多份选中的在范围个人周报（除非是明确的模板元数据）
+- 每个聚合数值表格必须可从选中的源周报复现
+- 如果一个值无法追溯到选中的源周报，不得保留为汇总结果
 
-For this skill, copying or recreating the template document alone is never sufficient.
+**执行要求：**
+- 维护每个汇总章节与其来源周报之间的映射关系
+- 将选中的个人周报视为本次运行的真值输入集
+- 复用已复制的模板文档时，在保留内容之前，必须针对当前源周报验证每个非样式敏感的汇总块
 
-Every execution must produce a real department summary derived from the selected personal weekly reports.
+#### 2.3.3 来源冲突解决规则
 
-Mandatory execution baseline:
+不同源周报可能包含重叠的汇总数据且数值不一致。此时：
 
-- first identify the in-scope personal weekly reports
-- then fetch and read each in-scope report in full
-- then extract the actual paragraphs, lists, and table data from each source report
-- then compute the department-level summary from those extracted source reports
-- then write the computed result back into the summary doc while preserving the approved template structure and presentation where required
+1. 优先选择明确作为该指标权威来源的最具体表格或章节
+2. 优先选择内部自洽（明细行与合计匹配）的源表格
+3. 不得静默将矛盾数值合并为编造的折中值
+4. 如果为某个冲突指标选择了某一来源而非另一个，在最终响应中记录该选择
+5. 如果无法有把握地解决冲突，停止并暴露歧义，而不是假装数据已确定
 
-Do not claim that a department summary has been completed unless the summary content has actually been derived from the selected source reports.
+#### 2.3.4 回退日期规则
 
-Forbidden shortcut:
+如果当前目标日没有收到周报，且当天也没有发出的主管周报，不要立即停止。使用以下回退：
 
-- do not copy `产品部部门周报汇总（模板）` or any prior summary doc and present it as finished unless its content has been revalidated and updated against the current selected source reports
+1. 找到当前预设或工作流范围内最近一个有在范围收到周报的日期
+2. 找到匹配同一工作流范围的最近一份已发出的主管周报
+3. 使用这些最近的在范围输入运行工作流
 
-### 1. Archive first
+如果只有一侧缺失，只回退缺失的一侧。
 
-After identifying the in-scope reports for the workflow and fetching their details, archive those in-scope reports into DingTalk docs before doing any summary work. Do not archive every report from the same day by default.
+**必须在响应中明确说明回退日期**，让用户知道实际使用了哪个源周报日期。此回退日期仅用于来源选择，不得替换 `汇总日期`。`汇总日期` 仍必须使用当前北京时间日历日期。也不得将回退锚点日期直接复制为 `源周报日期`，`源周报日期` 仍必须从选中周报的实际北京 时间戳推导。
 
-Default archive behavior:
+#### 2.3.5 模板来源规则
 
-- archive only the reports selected into the workflow's in-scope personal-report set
-- supervisor reports, template-source reports, and explicitly excluded reports must not be archived as personal report docs
-- for the fixed preset `产品部周报汇总`, Lu Xiamiao's weekly report must not be archived and must not be counted as a summary input
-- one report per DingTalk doc
-- doc name = report name
-- content must be copied in full
-- do not summarize, compress, or rewrite archived personal report content
-- before creating a personal report doc, if a same-name doc already exists in the target folder, delete the old doc first and then create a new one
-- use delete-then-create instead of overwrite when the user needs fresh create timestamps for archived personal report docs
-- before creating the department summary doc, if a same-name summary doc already exists in the target folder, delete the old doc first and then create a new one
+部门周报格式必须遵循指定的模板来源：
+- 如已指定最终版部门汇总模板文档，优先使用
+- 如尚未指定最终版模板文档，则使用指定的主管周报
 
-### 1.1 Fallback date rule
+**必须：**
+- 保留其主章节结构
+- 尽可能保留其子章节层级
+- 将其他收到的周报映射到主管周报结构中
+- 不得自行发明新的部门周报大纲，除非用户明确要求
 
-If there are no received reports for the current target day, and there is also no outgoing supervisor weekly report for that same day, do not stop immediately.
+本 Skill 是全局可复用的。不要硬编码吕夏苗，除非当前任务明确使用吕夏苗的主管周报作为模板。始终将模板来源视为可变输入，除非预设定义了固定的最终版模板文档。
 
-Use this fallback:
+#### 2.3.6 表格更新回退方案
 
-1. find the most recent date with in-scope received reports for the current preset or workflow
-2. find the most recent outgoing supervisor weekly report that matches that same workflow scope
-3. run the workflow using those most recent scoped inputs
+当钉钉块级表格更新失败时，使用以下回退：
+1. 定位现有块
+2. 删除旧块
+3. 在正确位置插入新块
+4. 重新读取附近块以验证位置
 
-If only one side is missing, fall back only for the missing side.
+---
 
-Always make the fallback date explicit in the response so the user knows which source-report date was actually used. This fallback date is for source selection only. Do not replace `汇总日期` with the fallback date. `汇总日期` must still use the current Beijing-time calendar date.
-Also do not blindly copy the fallback anchor date into `源周报日期`. `源周报日期` must still be derived from the selected reports' actual Beijing timestamps.
+## 三、查询 & 归档个人周报
 
-### 2. Template source
+### 3.1 查询规则
 
-The department weekly report format must follow the designated template source.
+1. 使用北京时间的日边界查询指定日期范围内的候选收到周报
+2. 在归档之前，先识别哪些周报属于当前工作流或预设的范围
+3. 如果未找到在范围的周报，对限定的工作流应用回退日期规则，而非对所有收到周报应用
+4. 获取每份在范围结果的周报详情，并将所有时间戳归一化为 `Asia/Shanghai` 后再比较日期
+5. 对于 `产品部周报汇总`，只有 `孙圣宇`、`张永翔`、`邓智泳`、`王俊秀` 发送的周报属于在范围
+6. 发件人白名单优先级高于基于日期的回退或邮箱共收
+7. 标题匹配仅为辅助检查；如果发件人不在白名单内，默认排除该周报
+8. 排除不相关部门的周报（如标题含 `（科研服务部）`），除非用户明确要求跨部门处理
 
-In this workflow, the template source is:
+**发件人范围：**
 
-- either a designated finalized department-summary template doc
-- or, if no finalized template doc has been designated yet, the designated supervisor weekly report
-
-That means:
-
-- keep its major section structure
-- keep its sub-section hierarchy where possible
-- map other received reports into the supervisor report structure
-- do not invent a new department report outline unless the user explicitly asks
-
-If a finalized template doc exists for the current preset, it has higher priority than the supervisor weekly report and should be treated as the canonical structural template for subsequent runs.
-
-This skill is global and reusable.
-
-Do not hardcode Lu Xiamiao unless the current task explicitly uses Lu Xiamiao's supervisor report as the template.
-Always treat the template source as a variable input unless the preset defines a fixed finalized template doc.
-
-### 2.1 Template fidelity for fixed tables
-
-For any table that already exists in the designated supervisor weekly report template:
-
-- keep the table as a real table in the department summary
-- do not collapse a template table into plain text, bullets, or a prose summary
-- if the template has multiple sibling tables under the same parent section, keep all of them unless the user explicitly asks to remove one
-
-For the default preset `产品部周报汇总`, the following tables are mandatory and must not be omitted when they exist in the supervisor report template:
-
-- `部门业绩指标总览`
-- `创新ToB增收明细`
-- `创新ToC用户增量明细`
-
-If the preset has already been stabilized into a finalized department-summary template doc, interpret "template" in all table-fidelity rules as that finalized template doc rather than the historical supervisor weekly report.
-
-If there is no source data for a retained template table:
-
-- keep the table structure
-- leave rows blank, zero-filled, or template-consistent as appropriate
-- do not delete the table just because some values are empty
-
-### 2.2 Confirmed cell-merge rules for summary tables
-
-When the department summary is rendered into DingTalk docs, the following confirmed merged-cell presentation rules must be applied when the user is using the fixed preset `产品部周报汇总`.
-
-These are presentation rules for the summary doc and should be preserved even if the underlying source values are sparse.
-
-#### A. `创新ToB增收明细`
-
-- keep the table as a real table
-- include the rows:
-  - `伏羲慧眼`
-  - `AI电子相册`
-  - `统战系统`
-  - `ALLiN1`
-  - `其他`
-- in the confirmed display variant:
-  - `指标` should be vertically merged starting from `AI电子相册` down through `其他`
-  - `完成度` should be vertically merged starting from `AI电子相册` down through `其他`
-- if the confirmed merged block carries one shared displayed value, place that value in the top cell of the merged block and leave the covered rows as part of the merge instead of repeating the value
-
-#### B. `创新ToC用户增量明细`
-
-- keep the table as a real table
-- in the confirmed display variant:
-  - first merged block:
-    - `指标` merges `学术名片` + `学术主页&文献管理`
-    - `完成度` merges `学术名片` + `学术主页&文献管理`
-  - second merged block:
-    - `指标` merges `ALLiN1` + `公共平台` + `移动商城店铺`
-    - `完成度` merges `ALLiN1` + `公共平台` + `移动商城店铺`
-- do not split the second merged block into smaller segments unless the user explicitly overrides this layout
-- if the displayed shared value belongs to the merged block, place it in the first row of that merged block and render the remaining covered rows as merged cells rather than duplicated values
-
-### 2.3 Confirmed red-text rendering rules for summary tables
-
-When the department summary is rendered into DingTalk docs for the fixed preset `产品部周报汇总`, the following cell values must be rendered in red text.
-
-These are presentation rules and should be applied without changing table structure, merge structure, or source semantics.
-
-#### A. `采购平台` 实施概况表
-
-- render `本周新增` as red
-- render `本周已完成` as red
-
-#### B. `科管系统` 明细表
-
-- render all displayed values under these columns as red:
-  - `需求成本`
-  - `ROI`
-  - `单位阶段`
-
-#### C. `创新ToB推广&增收`
-
-- in the non-total data rows, render these columns as red when populated:
-  - `启动时间`
-  - `进度`
-
-#### D. `C端产品渠道获客概况`
-
-- render the entire `总计` row as red
-
-#### E. `产品投广成本`
-
-- render all displayed values under these columns as red:
-  - `本周总计`
-  - `本年总计`
-
-#### F. `需求开发概况`
-
-- render `本周新增` as red
-
-#### G. Rendering safety rule
-
-- do not inject raw HTML such as `<span style=...>` into DingTalk table-block cell strings
-- if DingTalk table-block APIs would render style markup as literal text, do not use block delete-and-reinsert as the final rendering path for red-text styling
-- for tables that already rely on template-native merge or styling behavior, prefer preserving the original template-rendered table presentation
-- for the fixed preset `产品部周报汇总`, Markdown whole-document regeneration is not considered presentation-safe for the merged/red-text summary tables if it would flatten template-native merged cells or lose native red-text rendering
-- when a finalized template doc already contains the correct native merged-cell and red-text presentation, prefer copying that template doc and editing only non-style-sensitive text blocks instead of recreating the styled tables from Markdown
-- if a styling requirement cannot be applied without degrading table rendering, stop and surface the limitation instead of shipping literal HTML text in cells
-
-#### H. Generation-path rule for styled summary tables
-
-- for the fixed preset `产品部周报汇总`, the summary doc's styled tables must be produced through the same whole-document generation path that already yields correct native DingTalk rendering
-- do not treat block-level table delete/insert as equivalent to whole-document generation for styled tables
-- if a prior generated department-summary doc already demonstrates the correct native rendering for merged cells or red text, use that successful generation path as the reference implementation
-- when a table depends on native DingTalk rendering behavior, prefer recreating the whole summary doc over patching individual styled table blocks
-- for the finalized template doc `产品部部门周报汇总（模板）`, the preferred reference implementation is: copy the template doc itself, keep the template-native styled tables intact, then update only plain-text metadata or other non-style-sensitive blocks
-- do not rebuild `创新ToB增收明细` or `创新ToC用户增量明细` from Markdown when the goal is to preserve the template's native merged-cell presentation and red-text rendering
-- block-level patching may still be used for plain-text paragraphs or structurally simple tables that do not depend on native color or merge presentation
-
-### 3. Personal summary section boundary
-
-`二、本周个人工作总结` belongs to the supervisor personally.
-
-Rules:
-
-- do not summarize other received reports into this section
-- when producing the department summary from other people's reports, leave this section empty unless the user provides the supervisor's own content
-- keep the sub-headings under this section if the template contains them
-- if a draft already contains merged content here, remove it
-
-### 4. Promotion data classification
-
-Promotion-related content belongs under product promotion, not under other key projects.
-
-Specifically:
-
-- `科研管理系统投广`
-- channel acquisition tables
-- promotion cost tables
-
-must stay in:
-
-- `产品推广`
-- `创新ToB推广&增收`
-- `C端产品渠道获客概况`
-- `产品投广成本`
-
-and must not be duplicated under `其他重点项目`.
-
-### 5. Totals-only tables
-
-If the user requests totals only, replace grouped rows with one aggregated totals row or totals table.
-
-For this workflow, confirmed totals-only behavior includes:
-
-- `采购平台实施概况`
-- `需求开发概况`
-
-### 6. Table update fallback
-
-When DingTalk block-level table update fails, use this fallback:
-
-1. locate the existing block
-2. delete the old block
-3. insert a new block in the correct position
-4. re-read nearby blocks to verify placement
-
-### 6.1 Source-traceability rule
-
-The generated department summary must be source-traceable.
-
-That means:
-
-- every populated paragraph, list item, and table row in the department summary must come from one or more selected in-scope personal weekly reports unless it is explicitly template metadata
-- every aggregated numeric table must be reproducible from the selected source reports
-- if a value cannot be traced back to the selected source reports, do not keep it as a claimed summary result
-
-Required execution behavior:
-
-- keep a working mapping between each summary section and the source report(s) that fed it
-- treat the selected personal reports as the ground-truth input set for the current run
-- when reusing a copied template doc, verify each non-style-sensitive summary block against the current source reports before leaving it in place
-
-### 6.2 Source conflict resolution rule
-
-Sometimes different selected source reports may contain overlapping summary data with inconsistent values.
-
-When this happens:
-
-1. prefer the most specific table or section that is clearly acting as the authoritative source for that metric
-2. prefer internally self-consistent source tables that include matching detail rows and totals
-3. do not silently merge contradictory numeric values into a fabricated compromise
-4. if one source is chosen over another for a conflicting metric, record that choice in the final response
-5. if the conflict cannot be resolved confidently, stop and surface the ambiguity instead of pretending the data is settled
-
-### 7. Group leader summary table fidelity
-
-`7. 组长工作总结` must follow the supervisor weekly report's table format exactly.
-
-Rules:
-
-- keep it as a table, not as an overall narrative summary
-- keep the original template columns and order
-- for the current confirmed format, use:
-  - `负责人`
-  - `类型`
-  - `任务名称`
-  - `本周进度`
-- merge source rows from in-scope reports into this table row by row
-- do not compress multiple rows into one synthesized management summary
-- preserve the original wording of each source row as much as possible
-- if a source row already fits the target columns, copy it directly instead of rewriting it
-
-## Standard Workflow
-
-1. Query candidate received reports in the specified date range, using Beijing-time day boundaries.
-2. Identify which reports are in scope for the current workflow or preset before any archiving.
-3. If no in-scope reports are found, apply the fallback date rule against the scoped workflow, not against every received report.
-4. Fetch report details for each in-scope result, and normalize all timestamps to `Asia/Shanghai` before comparing dates.
-5. Archive each in-scope report into DingTalk docs.
-6. Identify which in-scope reports are content sources for summary.
-7. Use the finalized department-summary template doc first, or else use the supervisor weekly report as the structure template.
-8. Read each selected source report in full and extract its actual paragraphs, lists, and tables.
-9. Build a source-to-summary mapping for all major sections and summary tables.
-10. Normalize duplicated categories, overlapping rows, and table totals across the selected source reports.
-11. Recompute the department summary content from the extracted source reports instead of trusting prior summary output by default.
-12. Generate or update the department summary doc while preserving template-native presentation for style-sensitive tables.
-13. Verify that each updated summary block is traceable to the selected source reports.
-14. After generating the archive docs and department summary doc, report the result for user review and apply any follow-up structural corrections if requested.
-15. Do not stop before creating the initial deliverables solely to ask for review or approval when the fixed preset defaults are available.
-
-When generating the summary doc:
-
-- set `汇总日期` to the current execution date in `Asia/Shanghai`
-- if source reports come from an earlier day because of fallback, mention that separately in a note or explanation instead of changing `汇总日期`
-- do not treat a copied template doc as complete until the summary content has been recomputed or revalidated against the selected source reports
-
-## Summary Mapping Rules
-
-When summarizing into the supervisor report template:
-
-- preserve the supervisor report's main headings
-- preserve meaningful sub-headings under business, promotion, AI, demand development, design work, and next-week planning
-- preserve required template tables such as `创新ToB增收明细` and `创新ToC用户增量明细`
-- preserve the sub-headings under `二、本周个人工作总结`, but do not fill them with content from other people's reports
-- if a section exists in the template but no source content exists, keep the section and leave it blank or mark it as none only if the user wants that
-- do not replace a table section like `7. 组长工作总结` with a paragraph-style synthesis
-- when a section or table is populated, ensure the filled content can be traced back to the selected source reports for the current run
-
-## Confirmed Table Rules
-
-### A. Procurement platform implementation overview
-
-When the user requests totals only:
-
-- sum each numeric column across source groups
-- show only the aggregated result
-
-### B. Demand development overview
-
-When the user requests totals only:
-
-- sum each numeric column across source groups
-- show only the aggregated result
-
-### C. Key and C-end demand detail table
-
-This table may follow task-specific filtering rules below.
-
-Use these rules in order:
-
-1. If the demand name contains `对接`, include it regardless of workload.
-2. Otherwise, if the product name contains any of:
-   - `采购平台`
-   - `供应商`
-   - `科管系统`
-   - `科研管理系统`
-   and the demand is not a `对接` demand, include it only when workload is `>= 20`.
-3. Otherwise, if the owner is either:
-   - `张永翔`
-   - `梁益双`
-   include it regardless of workload.
-4. Otherwise, include all remaining product demands regardless of workload.
-
-Additional confirmed notes for the confirmed variant:
-
-- `对接` is the fixed keyword for identifying system-integration-type demands
-- product keywords are not merged beyond the exact keyword matching above
-- the old title `工作量30及以上...` is not accurate for this rule set
-- prefer a title like `重点以及C端产品需求明细（包括所有产品设计需求以及单位实施需求）`
-
-## Output Expectations
-
-The skill should usually produce:
-
-1. archived personal report docs
-2. one department weekly summary doc
-3. corrections after user review
-
-The completion standard for the summary doc is:
-
-- it is structurally based on the approved template
-- it is substantively derived from the selected source reports
-- its numeric totals can be explained from the selected source tables
-- any material source conflict has either been resolved explicitly or surfaced to the user
-
-## Suggested Prompt Pattern
-
-Use this pattern when executing the skill:
-
-```text
-请处理指定日期内收到的周报，并生成部门周报。
-
-要求：
-1. 先查询周报列表并获取详情。
-2. 查询完成后，先把收到的每份周报生成钉钉文档，作为原始归档。
-3. 个人周报文档以周报名称命名，内容完整复制，不做摘要。
-4. 根据用户要求排除指定人员周报。
-5. 以吕夏苗发出的主管周报作为部门周报模板。
-6. 从其他收到的几份周报中提取内容，按主管周报的栏目结构进行整理、统计和汇总。
-7. 严格保留主管周报模板里已有的关键表格，尤其是“部门业绩指标总览”“创新ToB增收明细”“创新ToC用户增量明细”。
-8. 对指定统计表按列汇总，只展示总数，不展示分组明细。
-9. 对“重点以及C端产品需求明细”按既定规则筛选入表。
-10. `7.组长工作总结` 必须按原表格列逐行汇总，不要改写成概述。
-11. 不要把其他人的内容汇总到“二、本周个人工作总结”。
-12. 输出到指定钉钉文件夹。
-13. 若文档块级更新失败，采用删除旧块并插入新块的方式修复。
-```
-
-## Global Preset Template
-
-This skill supports reusable named presets. For normal use, `$产品部周报汇总` should default to the preset below.
-
-### Default Template Binding
-
-`$产品部周报汇总` defaults to this preset unless the user explicitly names another template.
-
-### Preset Name
-
-`产品部周报汇总`
-
-### Trigger Phrases
-
-`【产品部周报汇总】`
-
-`产品部周报汇总`
-
-### Preset Behavior
-
-When the user sends exactly or primarily:
-
-`$产品部周报汇总`
-
-or
-
-`【产品部周报汇总】`
-
-or
-
-`产品部周报汇总`
-
-run this skill immediately with the following defaults, without asking for additional parameters, and treat the template as fixed to `产品部周报汇总` unless something essential is missing from upstream data or the user explicitly overrides the template. Reading the skill file, querying reports, or copying the template is not a completed run; continue through archive creation, source extraction, summary recomputation, and summary doc creation before returning a final response.
-
-#### Fixed Defaults
-
-- query range: the current conversation date in Beijing time (`Asia/Shanghai`), meaning today's received weekly reports by China Standard Time day boundaries
-- target DingTalk folder:
-  `https://alidocs.dingtalk.com/i/nodes/D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP`
-- finalized summary template doc:
-  `产品部部门周报汇总（模板）`
-- Lu Xiamiao exclusion: do not archive Lu Xiamiao's weekly report, and do not use it as a department-summary input
-- Lu Xiamiao's weekly report is no longer the first-choice structural template once `产品部部门周报汇总（模板）` has been confirmed by the user
-- Lu Xiamiao's weekly report may only be used as a fallback template or reference source when the finalized template doc is unavailable, inaccessible, or explicitly requested by the user
-- allowed senders for `产品部周报汇总`: `孙圣宇`, `张永翔`, `邓智泳`, `王俊秀`
-
-#### Fixed Execution Rules
-
-- first query the candidate received reports
-- then determine which reports belong to the preset scope before any archiving
-- for `产品部周报汇总`, only reports sent by `孙圣宇`, `张永翔`, `邓智泳`, or `王俊秀` are in scope
-- if today's in-scope reports are empty and today's in-scope supervisor weekly report is also missing, fall back to the most recent available in-scope reports and the most recent available in-scope supervisor weekly report
-- all fallback comparisons and the final displayed summary date must use Beijing-time calendar dates, even if source timestamps are stored or returned in another timezone representation
-- then fetch report details
-- then archive each in-scope report into DingTalk docs
-- for `产品部周报汇总`, do not archive Lu Xiamiao's weekly report as a personal report doc
-- for `产品部周报汇总`, never bulk-archive every report from the same day just because it was received
-- for `产品部周报汇总`, sender whitelist has higher priority than date-based fallback or mailbox co-receipt
-- for `产品部周报汇总`, title matching is only a secondary check; if sender is outside the whitelist, exclude the report by default
-- for `产品部周报汇总`, exclude unrelated departments such as reports titled with `（科研服务部）` unless the user explicitly asks for cross-department processing
-- if the fallback date contains a mixed mailbox day, archive only the reports that were selected into the preset scope
-- if a same-name personal report doc already exists in the target folder, delete the old doc first and then create a new one
-- if a same-name department summary doc already exists in the target folder, delete the old doc first and then create a new one
-- copy personal report content in full
-- summarize the department report using the finalized template doc `产品部部门周报汇总（模板）` as the first-choice structure source
-- for `产品部周报汇总`, the department summary must be recomputed from the four selected personal weekly reports for the current run; copying the template without re-deriving the content is not allowed
-- for `产品部周报汇总`, read all four selected personal weekly reports in full before claiming the summary is complete
-- for `产品部周报汇总`, recompute totals-only tables from source reports instead of inheriting old values from a previous summary doc
-- for `产品部周报汇总`, re-screen the demand-detail table from source reports on every run using the confirmed filtering rules instead of trusting a prior summary table by default
-- for `产品部周报汇总`, verify `其他重点项目` and `7. 组长工作总结` row by row against the selected source reports so source rows are not silently dropped
-- for the department summary doc, if merged cells or red-text styling must match the finalized template, prefer copying `产品部部门周报汇总（模板）` into a new same-folder doc and then editing only the non-style-sensitive text blocks
-- do not regenerate the full department summary from Markdown when doing so would break the template-native merge presentation or red-text rendering
-- only fall back to a supervisor weekly report as a structure source if the finalized template doc is missing, inaccessible, or explicitly overridden by the user
-- keep `二、本周个人工作总结` with sub-headings only, without merging content from other people's reports
-- keep promotion-related content under product-promotion sections, not under other key projects
-- show totals only for the confirmed totals-only tables
-- use the confirmed demand-detail filtering rules for the key and C-end demand table
-
-#### Confirmed Demand-Detail Rules For This Preset
-
-1. if the demand name contains `对接`, include it regardless of workload
-2. otherwise, if the product name contains any of:
-   - `采购平台`
-   - `供应商`
-   - `科管系统`
-   - `科研管理系统`
-   and the demand is not a `对接` demand, include it when workload is `>= 20`
-3. otherwise, if the owner is:
-   - `张永翔`
-   - `梁益双`
-   include it regardless of workload
-4. otherwise, include all remaining product demands regardless of workload
-
-#### Confirmed Sender Scope For This Preset
-
-Only these senders are allowed into `产品部周报汇总` by default:
+仅以下发件人默认允许进入 `产品部周报汇总`：
 
 - `孙圣宇`
 - `张永翔`
 - `邓智泳`
 - `王俊秀`
 
-If a report comes from any other sender, exclude it from both archive generation and department-summary inputs unless the user explicitly expands the scope.
-Lu Xiamiao's weekly report is a special exception: it may still be used as a fallback template source when the finalized template doc is unavailable, but it must not be archived as a personal weekly report doc and must not be counted as a department-summary input.
+如果周报来自其他发件人，排除在归档生成和部门汇总输入之外，除非用户明确扩展范围。
 
-## Deliverables
+吕夏苗的周报是特殊例外：当最终版模板文档不可用时，可作为回退模板来源，但不得归档为个人周报文档，也不得计入部门汇总输入。
 
-When done, report back with:
+### 3.2 归档规则
 
-- which reports were queried
-- which reports were selected into scope
-- which Beijing-calendar source-report date was actually used
-- whether fallback was triggered
-- which summary tables or sections were recomputed from source data
-- any source conflicts or judgment calls made during aggregation
-- the final department summary doc link
-- which reports were archived
-- which reports were used as summary inputs
-- which supervisor report was used as the template
-- which totals-only tables were applied
-- which custom filtering rules were applied
+在识别在范围的周报并获取详情后，先归档再汇总。**不要**默认归档当天的所有周报。
+
+**默认归档行为：**
+- 仅归档被选入工作流在范围个人周报集合的周报
+- 主管周报、模板来源周报和明确排除的周报不得归档为个人周报文档
+- 对于固定预设 `产品部周报汇总`，吕夏苗的周报不得归档，也不得作为汇总输入
+- 每份周报一个钉钉文档
+- 文档名称 = 周报名称
+- 内容必须完整复制，不做摘要、压缩或改写
+- 如果目标文件夹中已存在同名个人周报文档，先删除旧文档再创建新文档
+- 使用删除再创建而非覆盖（当用户需要新创建时间戳时）
+- 创建部门汇总文档前，如目标文件夹中已存在同名汇总文档，先删除旧文档再创建新文档
+- 如果回退日期的邮箱是混合的，仅归档被选入预设范围的周报
+- 不要批量归档当天所有收到的周报
+
+---
+
+## 四、部门周报汇总
+
+### 汇总总体规则
+
+- 使用最终版部门汇总模板文档作为首选结构来源；如不可用，再使用主管周报作为结构模板
+- 完整阅读每份选中的源周报并提取实际的段落、列表和表格
+- 构建所有主要章节和汇总表格的来源-汇总映射
+- 归一化选中的源周报中重复的分类、重叠的行和表格合计
+- 从提取的源周报重新计算部门汇总内容，而非默认信任之前的汇总输出
+- 复制的模板文档在汇总内容针对当前源周报重新计算或重新验证之前，不得视为已完成
+
+#### 4.0.1 模板表格保真规则
+
+对于主管周报模板中已存在的任何表格：
+- 在部门汇总中保留为真正的表格
+- 不得将模板表格折叠为纯文本、项目符号或段落式汇总
+- 如果模板在同一父章节下有多个同级表格，保留所有表格，除非用户明确要求删除
+- 如果已确认的最终版模板文档存在，所有表格保真规则中的「模板」均指该最终版模板文档
+- 如果没有某个保留模板表格的源数据：保留表格结构，行留空、填零或与模板保持一致，不得仅因某些值为空就删除表格
+
+当部门汇总渲染到钉钉文档时，使用固定预设 `产品部周报汇总` 时必须应用以下合并单元格呈现规则。这些是汇总文档的呈现规则，即使底层源值稀疏也应保留。
+
+**A. `创新ToB增收明细`**
+- 保留为真正的表格
+- 包含行：`伏羲慧眼`、`AI电子相册`、`统战系统`、`ALLiN1`、`其他`
+- 在确认的显示变体中：
+  - `指标` 从 `AI电子相册` 到 `其他` 纵向合并
+  - `完成度` 从 `AI电子相册` 到 `其他` 纵向合并
+- 如合并块有一个共享显示值，将该值放在合并块的顶部单元格，覆盖行作为合并的一部分而非重复该值
+
+#### 4.0.2 渲染安全规则
+
+- 不得向钉钉表格块单元格字符串中注入原始 HTML（如 `<span style=...>`）
+- 如果钉钉表格块 API 会将样式标记渲染为字面文本，不得使用块删除再插入作为红色文字样式的最终渲染路径
+- 对于已依赖模板原生合并或样式行为的表格，优先保留原始模板渲染的表格呈现
+- 对于固定预设 `产品部周报汇总`，如果 Markdown 全文档重新生成会导致模板原生合并单元格变平或丢失原生红色文字渲染，则 Markdown 全文档重新生成不被视为样式安全
+- 当最终版模板文档已包含正确的原生合并单元格和红色文字呈现时，优先复制该模板文档并仅编辑非样式敏感的文本块
+- 如果样式要求无法在不降低表格渲染质量的情况下应用，停止并暴露该限制，而不是在单元格中输出字面 HTML 文本
+
+#### 4.0.5 样式表格的生成路径规则
+
+- 对于固定预设 `产品部周报汇总`，汇总文档的样式表格必须通过已能产生正确原生钉钉渲染的全文档生成路径来生成
+- 不得将块级表格删除/插入视为样式表格的全文档生成的等价方式
+- 如果之前生成的部门汇总文档已展示正确的原生合并单元格或红色文字渲染，使用该成功的生成路径作为参考实现
+- 当表格依赖原生钉钉渲染行为时，优先重建整个汇总文档而非修补个别样式表格块
+- 对于最终版模板文档 `产品部部门周报汇总（模板）`，首选参考实现是：复制模板文档本身，保持模板原生的样式表格不变，然后仅更新纯文本元数据或其他非样式敏感的块
+- 当目标是保留模板的原生合并单元格呈现和红色文字渲染时，不得从 Markdown 重建 `创新ToB增收明细` 或 `创新ToC用户增量明细`
+- 块级修补仍可用于纯文本段落或不依赖原生颜色或合并呈现的结构简单表格
+
+#### 4.0.6 汇总映射规则
+
+当汇总到主管周报模板时：
+- 保留主管周报的主标题
+- 保留业务、推广、AI、需求开发、设计工作和下周计划下的有意义的子标题
+- 保留必需的模板表格（如 `创新ToB增收明细` 和 `创新ToC用户增量明细`）
+- 如果模板中存在某个章节但没有源内容，保留该章节并留空
+- 不得将 `7. 组长工作总结` 等表格章节替换为段落式汇总
+- 当章节或表格被填充时，确保填充内容可追溯到当前运行选中的源周报
+
+### 4.1 汇总本周部门工作总结
+
+本节涵盖对以下章节的汇总规则：`一、本周部门工作总结`、`三、下周工作计划`、`四、需协调与帮助`。
+
+**汇总规则：**
+
+- 从选中的在范围个人周报（非吕夏苗个人文档）中提取内容
+- 按主管周报/最终版模板的章节结构进行映射
+- 重新计算而非信任之前的汇总输出
+- 每个汇总章节和表格行必须可追溯到选中的源周报
+- 如源周报有数值冲突，按来源冲突解决规则处理（见 2.3.3）
+
+#### 4.1.1 必选表格
+
+**对于固定预设 `产品部周报汇总`，以下表格为必选，不得遗漏：**
+- `部门业绩指标总览`
+- `创新ToB增收明细`
+- `创新ToC用户增量明细`
+
+#### 4.1.2 确认的合并单元格规则
+
+当部门汇总渲染到钉钉文档时，使用固定预设 `产品部周报汇总` 时必须应用以下合并单元格呈现规则。这些是汇总文档的呈现规则，即使底层源值稀疏也应保留。
+
+**A. `创新ToB增收明细`**
+- 保留为真正的表格
+- 包含行：`伏羲慧眼`、`AI电子相册`、`统战系统`、`ALLiN1`、`其他`
+- 在确认的显示变体中：
+  - `指标` 从 `AI电子相册` 到 `其他` 纵向合并
+  - `完成度` 从 `AI电子相册` 到 `其他` 纵向合并
+- 如合并块有一个共享显示值，将该值放在合并块的顶部单元格，覆盖行作为合并的一部分而非重复该值
+
+**B. `创新ToC用户增量明细`**
+- 保留为真正的表格
+- 在确认的显示变体中：
+  - 第一个合并块：`指标` 合并 `学术名片` + `学术主页&文献管理`；`完成度` 同理
+  - 第二个合并块：`指标` 合并 `ALLiN1` + `公共平台` + `移动商城店铺`；`完成度` 同理
+- 不得将第二个合并块拆分为更小的段，除非用户明确覆盖此布局
+- 如合并块的共享显示值，放在该合并块的第一行，其余覆盖行渲染为合并单元格而非重复值
+
+#### 4.1.3 确认的红色文字渲染规则
+
+当部门汇总渲染到钉钉文档时，对于固定预设 `产品部周报汇总`，以下单元格值必须渲染为红色文字。这些是呈现规则，不应改变表格结构、合并结构或源语义。
+
+**A. `采购平台` 实施概况表** → `本周新增`、`本周已完成` 渲染为红色
+
+**B. `科管系统` 明细表** → `需求成本`、`ROI`、`单位阶段` 列下所有显示值渲染为红色
+
+**C. `创新ToB推广&增收`** → 非合计数据行中，`启动时间`、`进度` 列有值时渲染为红色
+
+**D. `C端产品渠道获客概况`** → 整个 `总计` 行渲染为红色
+
+**E. `产品投广成本`** → `本周总计`、`本年总计` 列下所有显示值渲染为红色
+
+**F. `需求开发概况`** → `本周新增` 渲染为红色
+
+#### 4.1.4 仅显示合计的表格
+
+已确认的仅显示合计的表格：
+- `采购平台实施概况`
+- `需求开发概况`
+
+如用户要求仅显示合计，将分组行替换为一个合计行或合计表格。对每个数值列跨源分组求和，只展示聚合结果。
+
+#### 4.1.5 推广数据分类规则
+
+推广相关内容属于产品推广，不属于其他重点项目。
+
+具体来说，以下内容：
+- `科研管理系统投广`
+- 渠道获客表格
+- 投广成本表格
+
+必须放在以下章节：
+- `产品推广`
+- `创新ToB推广&增收`
+- `C端产品渠道获客概况`
+- `产品投广成本`
+
+且不得在 `其他重点项目` 下重复出现。
+
+#### 4.1.6 重点及C端产品需求明细筛选规则
+
+此表格遵循以下顺序筛选规则：
+
+1. 如需求名称包含 `对接`，不论工作量大小，纳入
+2. 否则，如产品名称包含以下任一：`采购平台`、`供应商`、`科管系统`、`科研管理系统`，且不是 `对接` 需求，仅当工作量 `>= 20` 时纳入
+3. 否则，如负责人为 `张永翔` 或 `梁益双`，不论工作量大小，纳入
+4. 否则，纳入所有剩余产品需求，不论工作量大小
+
+补充说明：
+- `对接` 是识别系统集成类需求的固定关键词
+- 产品关键词不做超出上述精确匹配的合并
+- 旧标题 `工作量30及以上...` 不适用于此规则集
+- 推荐标题：`重点以及C端产品需求明细（包括所有产品设计需求以及单位实施需求）`
+
+#### 4.1.7 组长工作总结表格保真规则
+
+`7. 组长工作总结` 必须严格遵循主管周报的表格格式。
+
+规则：
+- 保留为表格，不要改为叙述式汇总
+- 保留原始模板列和顺序：`负责人`、`类型`、`任务名称`、`本周进度`
+- 将在范围周报的源行逐行合并到此表格
+- 不得将多行压缩为一个合成的管理汇总
+- 尽可能保留每条源行的原始措辞
+- 如果源行已适合目标列，直接复制而非改写
+
+---
+
+### 4.2 个人工作总结整体规则
+
+`二、本周个人工作总结` 的整体规则，适用于第 0-4 部分：
+
+**结构要求：** 按以下顺序输出：
+- `0. 本周概览`
+- `1. 发现与解决问题`
+- `2. 业务与培训`
+- `3. 管理与协作`
+- `4. 学习与创新`
+
+**来源文档：** 仅从以下 4 份文档填充：
+1. `吕夏苗钉钉周工作总结（mcp）` → 填充第 1-3 部分
+2. `吕夏苗claudecode周工作总结` → 填充第 4 部分
+3. `吕夏苗codex周工作总结` → 填充第 4 部分
+4. `吕夏苗workbuddy周工作总结` → 填充第 4 部分
+
+**整体规则：**
+- 将这 4 份文档视为吕夏苗个人周总结的来源，而非团队成员的部门汇总输入
+- 不得将这 4 份文档归档为收到的个人周报文档，除非用户明确要求
+- 不得将它们的内容混入部门级聚合表格、来源周报计数、`7. 组长工作总结` 或其他团队成员汇总章节
+- 填充 `二、本周个人工作总结` 之前，必须阅读并解析每份可访问的文档
+- 如果 1 份或多份文档不可访问或为空，继续使用可访问的文档，并在最终响应中说明缺失的来源
+- 整个 `二、本周个人工作总结` 必须去重——移除所有 5 个子章节中重叠或重复的项目
+- 内容必须可追溯到 4 份指定的个人总结文档
+- 不得编造无法追溯到这些文档的成果
+
+---
+
+### 4.3 汇总本周个人工作总结（第 1-3 部分）
+
+本节涵盖对 `二、本周个人工作总结` 的第 1-3 部分（`1. 发现与解决问题`、`2. 业务与培训`、`3. 管理与协作`）的汇总规则。
+
+**来源文档：** 仅从 `吕夏苗钉钉周工作总结（mcp）` 对应部分**直接复制**。
+
+**汇总规则：**
+
+- 第 1-3 部分的内容**直接从** `吕夏苗钉钉周工作总结（mcp）` 的对应章节复制，不得添加、改写或从其他来源补充
+- **不得包含 AI 相关议题**：如果 `吕夏苗钉钉周工作总结（mcp）` 第 1-3 部分中包含 AI 相关议题（如 AI 工具使用、AI 工作流搭建、skill 管理、Codex 沙箱排查等），必须从第 1-3 部分移除，转放到第 4 部分
+- 不得将其他团队成员的周报内容混入此节
+- `二、本周个人工作总结` 属于主管个人，如果草稿中已混入团队成员周报内容，需移除
+
+---
+
+### 4.4 汇总本周个人 AI 应用情况（第 4 部分）
+
+本节涵盖对 `二、本周个人工作总结` 的第 4 部分（`4. 学习与创新`）的汇总规则。
+
+**来源文档：** 仅从以下 3 份文档归纳总结：
+- `吕夏苗claudecode周工作总结`
+- `吕夏苗codex周工作总结`
+- `吕夏苗workbuddy周工作总结`
+
+**汇总规则：**
+
+- 第 4 部分的内容仅从上述 3 份 AI 工具周工作总结文档**归纳总结**
+- 不得使用 `吕夏苗钉钉周工作总结（mcp）` 的内容填充此部分
+- **所有 AI 相关议题必须且只能放在第 4 部分**，不得出现在第 0-3 部分
+- 去重：优先保留具体的行动、决策、交付物、已解决的问题和可衡量的成果，而非工具操作日志
+- 保留重要的来源差异，当 3 份文档强调不同的工作面时（如 Claude Code 工作、Codex 工作、WorkBuddy 工作），应体现各自侧重
+- 最终内容写为一份简洁的主管个人周总结，而非 3 份按工具分别列出的总结，除非用户明确要求
+
+---
+
+### 4.5 汇总个人工作本周概览（第 0 部分）
+
+本节涵盖对 `二、本周个人工作总结` 的第 0 部分（`0. 本周概览`）的汇总规则。
+
+**汇总规则：**
+
+- `0. 本周概览` 必须对第 1-4 部分做**总的归纳总结**
+- 提炼本周在发现与解决问题、业务与培训、管理与协作、学习与创新四个方面的核心要点和主要成果
+- **不要展开细节**，而是提炼全局性的主题和关键结论
+- 不得包含 AI 工具描述或 AI 工作流细节
+
+---
+
+## 五、固定执行流程
+
+执行 `$产品部周报汇总` 时，按以下步骤执行，并在会话窗口打印当前执行进度：
+
+### 步骤 1：查询候选收到周报
+**进度提示：** `[1/12] 正在查询候选收到周报...`
+
+使用北京时间的日边界查询指定日期范围内的候选收到周报。
+
+### 步骤 2：识别在范围的周报
+**进度提示：** `[2/12] 正在识别在范围的周报...`
+
+在归档之前，先识别哪些周报属于当前预设范围。仅 `孙圣宇`、`张永翔`、`邓智泳`、`王俊秀` 发送的周报属于在范围。
+
+### 步骤 3：应用回退日期规则
+**进度提示：** `[3/12] 正在检查是否需要回退日期...`
+
+如果未找到在范围的周报，对限定的工作流应用回退日期规则。
+
+### 步骤 4：获取周报详情
+**进度提示：** `[4/12] 正在获取在范围周报详情...`
+
+获取每份在范围结果的周报详情，将所有时间戳归一化为 `Asia/Shanghai`。
+
+### 步骤 5：归档个人周报
+**进度提示：** `[5/12] 正在归档个人周报到钉钉文档...`
+
+将每份在范围周报归档为钉钉文档。吕夏苗的周报不归档。
+
+### 步骤 6：读取源周报内容
+**进度提示：** `[6/12] 正在读取源周报内容并提取数据...`
+
+完整阅读每份选中的源周报，提取实际的段落、列表和表格。
+
+### 步骤 7：读取吕夏苗个人周工作总结
+**进度提示：** `[7/12] 正在读取吕夏苗个人周工作总结文档...`
+
+定位并解析 4 份吕夏苗个人周工作总结文档：`吕夏苗钉钉周工作总结（mcp）`、`吕夏苗claudecode周工作总结`、`吕夏苗codex周工作总结`、`吕夏苗workbuddy周工作总结`。
+
+### 步骤 8：计算部门汇总
+**进度提示：** `[8/12] 正在计算部门汇总内容...`
+
+从提取的源周报重新计算部门汇总内容。构建来源-汇总映射，归一化重复的分类、重叠的行和表格合计。
+
+### 步骤 9：汇总「二、本周个人工作总结」
+**进度提示：** `[9/12] 正在汇总「二、本周个人工作总结」...`
+
+按 4.2-4.5 的规则汇总个人工作总结：
+- 第 1-3 部分从钉钉文档直接复制（去除 AI 议题）
+- 第 4 部分从 3 份 AI 工具文档归纳
+- 第 0 部分对第 1-4 部分做总归纳
+- 整节去重
+
+### 步骤 10：生成部门汇总文档
+**进度提示：** `[10/12] 正在生成部门汇总文档...`
+
+生成或更新部门汇总文档，保留样式敏感表格的模板原生呈现。优先复制 `产品部部门周报汇总（模板）` 到新文档，再编辑非样式敏感的文本块。
+
+### 步骤 11：验证汇总内容
+**进度提示：** `[11/12] 正在验证汇总内容...`
+
+验证每个更新的汇总块可追溯到选中的源周报，验证 `二、本周个人工作总结` 仅可追溯到指定的吕夏苗个人周工作总结文档。
+
+### 步骤 12：报告执行结果
+**进度提示：** `[12/12] 正在报告执行结果...`
+
+---
+
+## 六、执行结果报告
+
+执行完成后，报告以下信息：
+
+- 查询了哪些周报
+- 哪些周报被选入范围
+- 实际使用的北京日历源周报日期
+- 是否触发了回退
+- 哪些汇总表格或章节是从源数据重新计算的
+- 哪些吕夏苗个人周工作总结文档被解析用于 `二、本周个人工作总结`，哪些缺失或不可访问
+- 汇总过程中的来源冲突或判断
+- 最终部门汇总文档链接
+- 哪些周报被归档
+- 哪些周报被用作汇总输入
+- 哪份主管周报被用作模板
+- 哪些仅显示合计的表格被应用
+- 哪些自定义筛选规则被应用
+

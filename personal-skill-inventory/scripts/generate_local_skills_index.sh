@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKILLS_DIR="${HOME}/.codex/skills"
+SKILLS_DIR="${HOME}/.workbuddy/skills"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_FILE="${SKILL_DIR}/LOCAL_SKILLS_INDEX.md"
@@ -16,17 +16,26 @@ trap cleanup EXIT
 
 overview_for() {
   case "$1" in
-    daily-codex-work-summary)
-      printf '根据本地 Codex 会话记录生成中文工作日报，汇总指定日期完成的任务、产出物、验证情况和待跟进事项。'
+    WorkBuddy工作日报)
+      printf '根据本地 WorkBuddy 会话记录生成中文工作日报，汇总指定日期完成的任务、产出物、验证情况和待跟进事项。'
       ;;
-    dingtalk-personal-weekly-report)
-      printf '基于钉钉聊天、群聊、@消息、日程和相关文档生成个人周报，并按固定四类栏目组织内容。'
+    WorkBuddy工作周报)
+      printf '根据本地 WorkBuddy 会话记录生成中文工作周报，聚焦工作主题、完成成果、产出物和待跟进事项。'
       ;;
-    personal-skill-inventory)
-      printf '生成个人本地 skills 清单，记录每个 skill 的名称、概述、直接触发器和文件路径。'
+    钉钉周工作总结（mcp）)
+      printf '基于钉钉 MCP 数据（聊天、@消息、OA审批、待办、日程、文档等）生成吕夏苗的周工作总结，默认范围最近 7 天。'
       ;;
-    reserve-dingtalk-meeting)
+    钉钉周工作总结（cu）)
+      printf '基于钉钉聊天、群聊、@消息、日程和相关文档生成个人周报，按发现与解决问题、业务与培训、管理与协作、学习与创新四部分组织。'
+      ;;
+    个人技能清单)
+      printf '扫描个人本地 skills 目录，生成中文技能清单索引，记录每个 skill 的名称、概述、触发器和文件路径。'
+      ;;
+    预约钉钉会议)
       printf '根据会议时间与参会人自动创建钉钉会议：查询会议室空闲、选择合适房间、完成预订与邀请。'
+      ;;
+    同步C端注册数)
+      printf '将产品部周报汇总中创新ToC用户增量明细表的本周新增和总完成量数据，同步到产品部项目管理 AI 表格的 C 端注册数表。'
       ;;
     产品部周报汇总)
       printf '将收集到的周报先归档为钉钉文档，再按固定模板汇总生成产品部部门周报。'
@@ -52,7 +61,7 @@ printf '目标文件：%s\n' "$OUTPUT_FILE"
 {
   printf '# 个人本地 Skills 清单\n\n'
   printf '最后更新时间：%s\n\n' "$TIMESTAMP"
-  printf '本文件记录当前个人创建或安装在本地的 Codex skills。范围为 `%s` 下的个人 skills，不包含系统内置 skills 和插件 skills。\n\n' "$SKILLS_DIR"
+  printf '本文件记录当前个人创建或安装在本地的 WorkBuddy skills。范围为 `%s` 下的个人 skills，不包含系统内置 skills 和插件 skills。\n\n' "$SKILLS_DIR"
   printf -- '- 触发器约定：使用 `$skill-name` 显式调用本地 skill。\n'
   printf -- '- 范围：仅个人本地 skills。\n'
   printf -- '- 排除：系统内置 skills 和插件 skills。\n\n'
