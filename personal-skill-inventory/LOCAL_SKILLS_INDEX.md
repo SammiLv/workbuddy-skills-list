@@ -1,6 +1,6 @@
 # 个人本地 Skills 清单
 
-最后更新时间：2026-05-18 18:48:15 CST
+最后更新时间：2026-05-19 18:45:37 CST
 
 本文件记录当前个人创建或安装在本地的 WorkBuddy skills。范围为 `/Users/sammilv/.workbuddy/skills` 下的个人 skills，不包含系统内置 skills 和插件 skills。
 
