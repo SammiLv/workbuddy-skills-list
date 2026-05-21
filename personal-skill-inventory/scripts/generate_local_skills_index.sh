@@ -8,6 +8,13 @@ OUTPUT_FILE="${SKILL_DIR}/LOCAL_SKILLS_INDEX.md"
 TIMESTAMP="$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S %Z')"
 TMP_FILE="$(mktemp)"
 
+# 外部安装的 skill 文件夹名列表（不纳入自建清单）
+EXTERNAL_SKILLS=(
+  "computer-use"
+  "processon-diagram-generator"
+  "processon-diagramgen"
+)
+
 cleanup() {
   rm -f "$TMP_FILE"
 }
@@ -40,19 +47,26 @@ overview_for() {
     产品部周报汇总)
       printf '将收集到的周报先归档为钉钉文档，再按固定模板汇总生成产品部部门周报。'
       ;;
+    AI工具一周使用总结)
+      printf '从本地 AI 工具会话记录生成一周工作总结，支持单工具、多工具或全量汇总，可选择性写入钉钉文档。'
+      ;;
     组长例会议题整理)
       printf '从钉钉日程、待办、审批、日志等间接证据中提炼需要跟组长沟通的议题，查找或创建每周一下午组长例会纪要文档，并将议题写入文档。'
-      ;;
-    computer-use)
-      printf '无头 Linux 服务器桌面控制技能：通过 Xvfb + XFCE 虚拟桌面和 xdotool 实现完整的 GUI 自动化操作（点击、输入、截图、拖拽等 17 种动作），含 VNC 实时查看功能。'
-      ;;
-    processon-diagram-generator)
-      printf 'ProcessOn 官方图表生成技能，将自然语言一键转化为精美、专业且可编辑的在线图表，支持流程图、架构图、ER图、泳道图、时序图、时间轴、路线图等结构化图表及 Mermaid 数据绘制。'
       ;;
     *)
       printf '该 skill 已被识别，但尚未配置中文概述；请根据对应 SKILL.md 补充。'
       ;;
   esac
+}
+
+is_external() {
+  local dir_name="$1"
+  for ext in "${EXTERNAL_SKILLS[@]}"; do
+    if [ "$dir_name" = "$ext" ]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 markdown_escape() {
@@ -70,21 +84,26 @@ printf '目标文件：%s\n' "$OUTPUT_FILE"
 {
   printf '# 个人本地 Skills 清单\n\n'
   printf '最后更新时间：%s\n\n' "$TIMESTAMP"
-  printf '本文件记录当前个人创建或安装在本地的 WorkBuddy skills。范围为 `%s` 下的个人 skills，不包含系统内置 skills 和插件 skills。\n\n' "$SKILLS_DIR"
+  printf '本文件记录当前个人自建的 WorkBuddy skills。范围为 `%s` 下的自建 skills，不包含外部安装、系统内置和插件 skills。\n\n' "$SKILLS_DIR"
   printf -- '- 触发器约定：使用 `$skill-name` 显式调用本地 skill。\n'
-  printf -- '- 范围：仅个人本地 skills。\n'
-  printf -- '- 排除：系统内置 skills 和插件 skills。\n\n'
+  printf -- '- 范围：仅个人自建 skills。\n'
+  printf -- '- 排除：外部安装、系统内置、插件 skills。\n\n'
   printf '## Skill 列表\n\n'
 
   found_count=0
 
   while IFS= read -r skill_dir; do
+    dir_name="$(basename "$skill_dir")"
+    if is_external "$dir_name"; then
+      continue
+    fi
+
     skill_file="${skill_dir}/SKILL.md"
     [ -f "$skill_file" ] || continue
 
     name="$(sed -n 's/^name:[[:space:]]*//p' "$skill_file" | head -n 1)"
     if [ -z "$name" ]; then
-      name="$(basename "$skill_dir")"
+      name="$dir_name"
     fi
 
     overview="$(overview_for "$name")"
@@ -101,7 +120,7 @@ printf '目标文件：%s\n' "$OUTPUT_FILE"
 
 mv "$TMP_FILE" "$OUTPUT_FILE"
 
-printf '识别到个人 skills 数量：%s\n' "$found_count"
+printf '识别到个人自建 skills 数量：%s\n' "$found_count"
 printf '生成中文索引内容\n'
 printf '保存目标文件：%s\n' "$OUTPUT_FILE"
 printf '刷新最后更新时间：%s\n' "$TIMESTAMP"

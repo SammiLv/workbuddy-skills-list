@@ -1,6 +1,6 @@
 ---
-name: weekly-leader-meeting-agenda
-description: 当用户希望根据本周钉钉群沟通内容整理需要跟组长沟通的议题，并写入每周一下午组长例会的会议纪要时触发此 skill。该 skill 会收集本周（周一到周五）用户参与的钉钉群聊消息、日程、待办、审批等证据，提炼出需要与组长沟通的议题清单，然后查找本周一下午的组长例会纪要文档，若不存在则先创建，最后将议题写入文档。触发词包括"整理组长会议题"、"组长例会议题"、"本周跟组长沟通的内容"等。
+name: 组长例会议题整理
+description: 当用户希望根据本周钉钉群沟通内容整理需要跟组长沟通的议题，并写入每周一下午组长例会的会议纪要时触发此 skill。该 skill 会搜索用户参与的钉钉工作群（仅能获取群名，无法读取群聊消息历史）、日程、待办、审批等间接证据，提炼出需要与组长沟通的议题清单，然后查找本周一下午的组长例会纪要文档，若不存在则先创建，最后将议题写入文档。触发词包括"整理组长会议题"、"组长例会议题"、"本周跟组长沟通的内容"等。
 agent_created: true
 ---
 
@@ -8,7 +8,7 @@ agent_created: true
 
 ## Purpose
 
-从本周（周一至周五）用户在钉钉的群沟通、日程、待办、审批等记录中，提炼需要跟组长沟通的议题，并写入每周一下午组长例会的会议纪要文档。若该纪要文档尚未创建，则先创建再写入。
+从本周（周一至周五）用户在钉钉的日程、待办、审批、日志等间接证据中，提炼需要跟组长沟通的议题，并写入每周一下午组长例会的会议纪要文档。若该纪要文档尚未创建，则先创建再写入。注意：当前钉钉 MCP 无法读取群聊消息历史，群聊相关议题需用户提供。
 
 ## Canonical Invocation
 
@@ -39,7 +39,7 @@ Key MCP tools used:
 
 - `dingtalk-calendar-mcp`: `list_calendar_events` — 查找本周一下午的组长例会日程
 - `dingtalk-contacts-mcp`: `get_current_user_profile`, `search_user_by_key_word` — 确认用户身份，查找组长信息
-- `dingtalk-robotmessage-mcp`: `search_groups_by_keyword` — 搜索相关群聊
+- `dingtalk-robotmessage-mcp`: `search_groups_by_keyword` — 搜索相关群聊（仅返回群名列表，不返回消息内容）
 - `dingtalk-ToDo-mcp`: `get_user_todos_in_current_org` — 获取待办
 - `dingtalk-OAapproval-mcp`: `list_initiated_instances`, `get_todo_tasks`, `get_done_tasks` — 获取审批记录
 - `dingtalk-log-mcp`: `get_send_report_list`, `get_received_report_list` — 获取日志
@@ -62,14 +62,15 @@ If no DingTalk MCP tools are available, stop and tell the user that the MCP tool
 
 从以下来源收集本周（周一至当前时刻）的沟通相关证据，按优先级排列：
 
-1. **群聊消息（最直接）**:
-   - 通过 `search_groups_by_keyword` 搜索与工作相关的群（如项目群、部门群、产品群等）。
-   - 若有 chat-history MCP 可用，读取本周群聊消息，重点关注：
+1. **群聊搜索（仅获取群名，无法读取消息历史）**:
+   - 通过 `search_groups_by_keyword` 搜索与工作相关的群（如项目群、部门群、产品群等），仅能返回群名、openConversationId、成员数等元信息。
+   - **关键限制**: 当前钉钉 MCP 没有群聊消息历史读取工具，`search_groups_by_keyword` 不返回任何消息内容。搜索到的群名仅作为间接提示（提示用户可能在这些群中有相关讨论），不能从中提炼议题。
+   - 若未来有 chat-history MCP 可用，可读取本周群聊消息作为直接证据。届时重点关注：
      - 用户自己发送的消息
      - @用户的消息
      - 涉及问题、阻塞、决策、进度更新的讨论
-     - 与组长相关的讨论（组长发起的、@组长的、需要组长决策的）
-   - 若 chat-history MCP 不可用，在结果中注明此限制，仍可从其他来源推断。
+     - 与组长相关的讨论
+   - 执行时必须明确向用户说明此限制，避免用户误以为已读取群聊消息。
 
 2. **日程**:
    - 通过 `list_calendar_events` 查询本周所有日程。
@@ -99,7 +100,7 @@ If no DingTalk MCP tools are available, stop and tell the user that the MCP tool
    - 工作中遇到的阻塞或风险，需要组长协调资源
    - 项目/业务进展需要向组长同步
    - 跨组协作中需要组长出面协调的事项
-   - 组长在群聊中提出但尚未闭环的问题
+   - 组长在群聊中提出但尚未闭环的问题（如群聊消息可获取时）
    - 用户自己发现但需要组长知情的问题
 
 2. **议题格式**:
@@ -178,13 +179,11 @@ If no DingTalk MCP tools are available, stop and tell the user that the MCP tool
 **纪要文档已更新**: 已将议题写入"待讨论议题"区块。
 
 **数据来源覆盖情况**:
-- ✅ 日程/待办/审批/日志
-- ✅/⚠️ 群聊消息（若 chat-history MCP 可用则为 ✅，否则为 ⚠️ 仅从间接证据推断）
+- ✅ 日程/待办/审批/日志（可直接读取内容）
+- ❌ 群聊消息（钉钉 MCP 无群聊消息历史读取工具，`search_groups_by_keyword` 仅返回群名列表，不返回任何消息内容）
 ```
 
-若 chat-history MCP 不可用，额外提醒：
-
-> ⚠️ 当前无法直接读取群聊消息历史，议题基于日程、待办、审批等间接证据提炼。如需更精确的群聊议题，可在钉钉桌面端手动查阅群记录后补充。
+> ⚠️ **重要限制**: 当前钉钉 MCP 没有群聊消息历史读取接口。`search_groups_by_keyword` 仅能搜索群名列表，无法获取任何群聊消息内容。议题完全基于日程、待办、审批、日志等间接证据提炼。如需基于群聊讨论提炼议题，请在钉钉桌面端查阅群记录后，将关键消息内容粘贴给我补充。
 
 ## Meeting Minutes Document Template
 

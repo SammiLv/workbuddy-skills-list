@@ -13,7 +13,8 @@ Create a current inventory of the user's personal WorkBuddy skills. The inventor
 
 1. Locate personal skills.
    - Default to `~/.workbuddy/skills`.
-   - Treat immediate child folders with a `SKILL.md` file as personal skills.
+   - Only self-created skills are included. Externally installed skills (e.g. `computer-use`, `processon-diagram-generator`, `processon-diagramgen`) must be excluded.
+   - The exclusion list is maintained in the script's `EXTERNAL_SKILLS` array. When a new external skill is installed, add its folder name there.
    - Exclude `.system` and plugin cache folders unless the user explicitly asks to include system or plugin-provided skills.
 
 2. Generate the inventory.

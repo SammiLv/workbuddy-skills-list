@@ -59,6 +59,17 @@ Use this format by default:
 
 For a shorter user request, return a compact paragraph plus bullets. For a detailed request, include sections for "完成事项", "产出物", "验证情况", and "待跟进".
 
+## Automation Output Rule (Critical)
+
+When this skill is executed by an automation (not an interactive user request), **output ONLY the final daily report content**. Do NOT output any of the following:
+- Thinking steps, reasoning process, or execution planning
+- Tool call descriptions or intermediate results
+- Sentences like "Let me start by...", "First I will...", "Now I need to..."
+- English-language process narration
+- Any content other than the formatted daily report itself
+
+The automation pushes this output to mobile; the user only wants to see the result.
+
 ## Quality Bar
 
 - Be specific enough that the user can remember the day's work without reopening every thread.
