@@ -74,44 +74,109 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
   - WorkBuddy 或其他：检查该工具常见本地数据目录，只在找到可读记录时纳入
 - 不使用网络访问，不扫描无关大目录。
 
-### 第 3 步：收集各工具会话记录
+### 第 3 步：精准收集会话记录（Shell 预筛，严控读取量）
 
-> **⚠️ 严禁使用文件系统时间（mtime/ctime）筛选会话文件。**
-> 文件的修改时间可能因同步、索引等原因被意外更新，与会话实际发生时间无关。必须解析文件内部的时间戳字段来判断该文件是否在目标日期范围内。
->
-> **正确流程：先扫描发现候选文件 → 逐文件解析内部时间戳 → 只保留有消息落在目标范围内的文件 → 再提取内容。**
-> 没有内部时间戳的文件直接跳过，不做猜测。
+**核心原则：先用 Shell 命令提取关键字段，禁止直接读取完整 jsonl 文件。**
 
-**范围校验（在生成摘要之前必做）：**
-统计每个工具每个项目在时间范围内的实际消息条数，打印简明清单（`项目名 → N 条`）。消息数为 0 的项目一律排除，不得纳入摘要。若全部工具的消息数均为 0，直接报告"目标日期范围内未找到有效会话"并列出已检查的路径。
+#### 硬性读取上限（所有工具通用）
 
-只读取第 2 步确认纳入的工具，按工具逐一处理：
+| 限制项 | 上限 |
+|---|---|
+| 每个工具最多处理的会话文件数 | 30 个 |
+| 每个会话文件最多读取的行数 | 150 行 |
+| 单次 grep 输出最多使用的行数 | 300 行 |
 
-- **Cursor**
-  - 遍历 `~/.cursor/projects/*/agent-transcripts/**/*.jsonl`。
-  - 只读取父会话文件：路径形如 `agent-transcripts/<sessionId>/<sessionId>.jsonl`；跳过 `subagents/*.jsonl`。
-  - **时间过滤**：解析每行 JSON 中 `role: "user"` 消息里 `message.content[].text` 内的 `<timestamp>...</timestamp>` 标签。时间戳格式为 `"Thursday, May 21, 2026, 2:06 PM (UTC+8)"`，必须解析 UTC 偏移量后与目标范围比较，只保留落在范围内的消息。
-  - 提取对应的 `<user_query>...</user_query>` 作为任务描述，必要时读取相邻 assistant 消息确认结果。
+超出上限的部分直接跳过，不影响已提取内容的汇总。
 
-- **Claude Code**
-  - 优先读取目标日期范围内的 `~/.claude/projects/*/memory/YYYY-MM-DD.md`。
-  - 若 memory 不足，再读取 `~/.claude/history.jsonl`，按 `timestamp` 筛选并收集 `project` 与 `sessionId`，将 `project` 路径转换到 `~/.claude/projects/` 下对应目录后，读取匹配 `sessionId` 的 `.jsonl`。
-  - 只提取用户请求、完成摘要、关键文件和验证信息，跳过 tool_result 与长日志。
+---
 
-- **Codex**
-  - 读取 `~/.codex/session_index.jsonl`，按每行的 `updated_at` 字段（ISO 8601 时间戳）筛选目标日期范围内的 session id，再在 `~/.codex/sessions/` 目录下读取对应 session 文件内容。
-  - `session_index.jsonl` 每行格式为 `{"id":"uuid","thread_name":"...","updated_at":"2026-05-21T05:10:15Z"}`，按 `updated_at` 过滤是合法且准确的（该字段由 Codex 写入，反映会话最后活跃时间）。
-  - 如存在 `~/.codex/history.jsonl`，用它辅助定位 session。
+#### Cursor
 
-- **其他 AI 工具**
-  - 只读取明确属于该工具的本地会话、日志、history 或 transcript。
-  - 如格式不清楚，先抽样读取少量文件确认字段，再筛选目标日期范围。
+**第一步：用 Shell 提取候选文件清单（只取父会话，跳过 subagents）**
+
+```bash
+# 列出所有父会话 jsonl 文件（路径格式：agent-transcripts/<id>/<id>.jsonl）
+find ~/.cursor/projects/*/agent-transcripts -maxdepth 2 -name "*.jsonl" \
+  | grep -v '/subagents/' \
+  | grep -E '/([0-9a-f-]+)/\1\.jsonl$'
+```
+
+**第二步：用 grep 从候选文件中提取时间戳和用户查询（禁止读取完整文件）**
+
+```bash
+# 仅抽取包含 timestamp 或 user_query 标签的行
+grep -h '<timestamp>\|<user_query>' <文件路径列表>
+```
+
+**第三步：按日期过滤**
+
+- 时间戳格式：`Thursday, May 21, 2026, 2:06 PM (UTC+8)`，解析年月日后与目标范围比对。
+- 只保留时间戳落在目标范围内的 `<user_query>` 内容，其余全部丢弃。
+- **不读取 assistant 消息**，除非某条 user_query 的结论完全不可判断时，才单独读取紧接其后的 assistant 摘要行（最多 30 行）。
+
+---
+
+#### Claude Code
+
+**优先路径（成本最低）：**
+
+```bash
+# 直接读取 memory 日报文件，每个文件已是预处理摘要
+ls ~/.claude/projects/*/memory/2026-05-1*.md ~/.claude/projects/*/memory/2026-05-2*.md 2>/dev/null
+```
+
+直接读取命中的 `.md` 文件，无需再读 jsonl。
+
+**降级路径（memory 不存在时）：**
+
+```bash
+# 从 history.jsonl 提取目标日期范围内的 sessionId（只取 timestamp + sessionId 字段）
+grep '2026-05-1[5-9]\|2026-05-2[0-1]' ~/.claude/history.jsonl | head -50
+```
+
+再用 sessionId 定位对应 `.jsonl`，对该文件执行：
+
+```bash
+grep -m 80 '"role":"user"\|"type":"result"\|"summary"' <session.jsonl>
+```
+
+只取前 80 处匹配，跳过 tool_use / tool_result 行。
+
+---
+
+#### Codex
+
+```bash
+# 第一步：从索引文件过滤目标日期范围内的 session（极低成本）
+grep '2026-05-1[5-9]\|2026-05-2[0-1]' ~/.codex/session_index.jsonl
+```
+
+取出 `id` 和 `thread_name`，再对每个匹配 session 文件执行：
+
+```bash
+grep -m 60 '"role":"user"\|"content"' ~/.codex/sessions/<id>.jsonl
+```
+
+只读前 60 处匹配，跳过工具调用细节行。
+
+---
+
+#### 其他 AI 工具
+
+- 先抽样读取 1 个文件的前 30 行确认字段格式，再用 grep 按日期过滤。
+- 同样遵守每工具 20 文件、每文件 150 行的硬性上限。
+
+---
+
+**范围校验（汇总前必做）：**
+统计每个工具命中的有效 user_query 条数，打印简明清单（`工具名 → N 条`）。命中数为 0 的工具排除，不纳入报告。全部为 0 时直接报告"目标日期范围内未找到有效会话"并列出已检查路径。
 
 ### 第 4 步：提取有效信息
 
-- 优先提取：用户任务、完成事项、关键产出、创建或修改的文件、验证结果、受阻原因。
-- 跳过：重复追问、纯闲聊、工具调用细节、临时日志、无结论的报错堆栈、token 或密钥。
+- 从 grep 已抽取的内容中归纳：用户任务、完成事项、关键产出、关键文件、验证结果、受阻原因。
+- 跳过：重复追问、纯闲聊、tool_call / tool_result 细节、临时日志、报错堆栈、token 或密钥。
 - 同一任务跨多个工具或多次会话出现时，合并为同一个工作主题，并标注涉及工具。
+- **不因信息不足而回头读取更多文件**；信息不足时用"看起来""可能"表述，不做无依据推断。
 
 ### 第 5 步：汇总
 
