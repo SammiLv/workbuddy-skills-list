@@ -1,107 +1,173 @@
 ---
-name: 钉钉周工作总结（cu）
-description: Use when the user wants a personal weekly report generated from DingTalk communication records and calendar events, especially chat/group-chat based work summaries that need to be organized into the four sections 发现与解决问题、业务与培训、管理与协作、学习与创新, with optional traceable ledger items and DingTalk Docs output.
+name: 钉钉个人周报
+description: 当用户需要基于钉钉数据生成当前用户一周工作总结时使用。触发语包括“帮我总结钉钉一周的工作”；默认在当前会话输出，若用户附带钉钉文档链接则写入指定文档。数据源包括日程、待办、OA 审批、文档、表格、AI 表格，以及通过 Computer Use 采集的群聊、单聊和 @我 工作证据。
 ---
 
-# DingTalk Personal Weekly Report
+# 钉钉个人一周工作总结
 
-## Overview
+## 适用场景
 
-Use this skill to turn a user's DingTalk communication and calendar activity into a reusable weekly report workflow. It is designed for cases where the evidence comes from chat records, group discussions, @mentions, message timelines, calendar events, and relevant DingTalk documents rather than a prewritten worklog.
+当用户说“帮我总结钉钉一周的工作”或表达类似需求时，使用本 skill。目标是围绕当前用户一周内真实发生的工作证据，整理“做了什么、推进了什么、解决了什么、协作了什么”，生成一份可直接用于周报的个人工作总结。
 
-Default output should support both:
-- a direct weekly report summary under four fixed sections
-- an optional traceable ledger with `时间｜事项｜来源`
+本 skill 是通用型个人周报流程，不固定为某个姓名。每次运行都必须先通过钉钉联系人 MCP 或其他可用的钉钉身份信息查询当前用户，确认总结对象后再采集证据。不要从群聊中频繁出现的姓名、会议参与人或文档作者中猜测总结对象。
 
-## Workflow
+## 触发与输出方式
 
-1. Confirm the reporting range.
-   - Default rule: summarize the 7-day period ending on the current date.
-   - In practice, when the user asks for a weekly summary near the end of the current week, treat the current date as the end date and trace back 7 calendar days inclusively for evidence collection.
-   - If the user explicitly says `上周`, `本周`, or gives a custom date range, follow the user's range instead.
-   - In China-locale threads, prefer explicit dates like `2026年5月5日-2026年5月11日`.
+- 用户输入“帮我总结钉钉一周的工作”，且提示词后没有其他参数时，在当前会话直接输出总结。
+- 用户输入“帮我总结钉钉一周的工作 + 钉钉文档链接”时，将最终内容写入用户指定的钉钉文档或钉钉文件夹。
+- 如果用户明确要求只输出台账、只写文档、补充来源限制、指定日期范围或指定某个人，则按用户要求执行，并在结果中写清楚实际范围和对象。
 
-2. Confirm the report subject.
-   - Fixed rule for this skill: the report owner is `吕夏苗`, and the weekly report must summarize `吕夏苗`'s work unless the user explicitly overrides it.
-   - Default rule: the report subject is the current user themself, not the most frequently mentioned person in DingTalk chats.
-   - In this workflow, never infer the report owner from arbitrary names that appear in group messages, @mentions, or copied chat snippets.
-   - If the user has already established their name in the thread, use that name consistently in the title and summary.
-   - If the user explicitly asks for another person's weekly report, switch to that named subject.
-   - If the subject is genuinely unclear and no prior identity is established, ask before generating the final report title.
+## 时间范围
 
-3. Collect DingTalk evidence.
-   - Prefer the DingTalk desktop app via `computer-use` when the source is chat history or group discussion.
-   - Always include DingTalk calendar events for the reporting range when calendar MCP access is available. Meeting-driven work is part of the weekly report evidence, not optional background.
-   - Prioritize:
-     - `@我`
-     - recent one-to-one chats
-     - recent group chats tied to work
-     - threads where the user clearly spoke or was explicitly mentioned
-     - calendar events where the report owner is organizer or attendee
-     - meetings whose title, description, participants, or room booking indicate product, project, management, review, or training work
-   - For each calendar event used, record the meeting title and date as a source such as `钉钉日程 / 伏羲慧眼2.0迭代需求讨论会`.
-   - Treat project-specific meeting titles as concrete work evidence. For example, if the range contains `伏羲慧眼2.0迭代需求讨论会`, include it under the most relevant section instead of omitting it because it was found in calendar rather than chat.
-   - Search DingTalk Docs or existing department summary materials for project keywords that appear in calendar or chats, especially strategic product names and ToB projects such as `伏羲慧眼`, `伏羲慧心`, `科管系统`, `采购平台`, `锐竞学术`, and `AI开发应用平台`.
-   - When a project appears across multiple sources, combine evidence carefully:
-     - use calendar events for participation and meeting-driven work
-     - use chat/group records for decisions, follow-ups, blockers, or direct communication
-     - use documents or department summaries for project status, design handoff, metrics, and official wording
-   - Ignore generic noise such as approvals, step counts, and pure notification traffic unless the user says otherwise.
+默认时间范围为当前日期起向前回溯 7 天，使用 Asia/Shanghai 日期。输出中必须写明精确日期范围，例如“2026年5月20日-2026年5月26日”。
 
-4. Separate evidence into concrete items.
-   - Do not merge unrelated threads into one item.
-   - A message about `百度SEO收录` and a message about `采购平台产品页上线` are two items, even if they happened on the same day.
-   - A meeting about `伏羲慧眼2.0迭代需求讨论会` and a design status item about `伏羲慧心+联盟介绍优化需求` are separate items unless the sources show they are the same follow-up.
-   - Prefer short, decision-oriented item wording.
+如果用户明确说“本周”“上周”或给出具体起止日期，优先使用用户指定的范围，并在最终结果中写清楚。
 
-5. Classify items into the fixed four sections.
-   - `发现与解决问题`: issues, diagnosis, troubleshooting, correction, optimization direction
-   - `业务与培训`: launches, requirements, content/material work, business support, training participation
-   - `管理与协作`: coordination, alignment, scheduling, internal review, cross-team follow-up, personnel/group management
-   - `学习与创新`: tool exploration, new methods, reusable patterns, workflow innovation
+## 数据源范围
 
-6. Produce the summary layer first.
-   - For each section, write:
-     - one concise overview paragraph
-     - a numbered `1、2、3、` summary list that can be copied directly into a weekly report
+优先使用只读方式采集证据。除非用户明确要求写入钉钉文档，否则不要创建、修改、删除或发送任何钉钉数据。
 
-7. Produce the ledger layer when needed.
-   - Put `【台账】` under the section summary.
-   - Use the exact format:
-     - `时间：5月9日｜事项：……｜来源：群名 / 人名 / 事项关键词。`
-   - Keep source compact: usually `群名 / 人名 / 事项关键词`; for meetings, use `钉钉日程 / 会议标题`; for document-derived project status, use `文档名 / 章节或事项关键词`.
+每次运行尽量覆盖以下来源：
 
-8. Write to DingTalk Docs when requested.
-   - Unless the user explicitly overrides the destination, write the final document under the fixed DingTalk folder `https://alidocs.dingtalk.com/i/nodes/D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP`.
-   - If the user explicitly gives another DingTalk folder or node, follow the user's override instead of the default folder above.
-   - Before creating a new DingTalk document, search the target folder for a document with the same final title and delete that same-name document first, then create the new one. Do not reuse, update, or overwrite the old same-name document in place.
-   - Prefer a deterministic title such as `吕夏苗钉钉周工作总结（cu）` or `吕夏苗钉钉周工作总结（cu）（YYYY年M月D日-YYYY年M月D日）` so same-name cleanup is reliable.
-   - If the user wants both traceability and direct weekly report use, keep them in the same document:
-     - top: `本周小结`
-     - then each section:
-       - summary paragraph
-       - numbered summary list
-       - blank line
-       - `【台账】`
-       - ledger entries
+1. 联系人：查询当前用户身份、姓名、userId，以及证据中涉及的关键联系人。
+2. 日程：采集一周内参加的会议、评审、培训、项目讨论、跨部门对齐等事件。
+3. 待办：采集当前用户完成、进行中、逾期或高优先级的任务。
+4. OA 审批：采集当前用户发起、处理、抄送的审批，以及审批背后的业务动作。
+5. 文档、表格、AI 表格：围绕项目、会议、审批、待办中出现的关键词，查找能解释工作内容、状态、结果、风险和决策的材料。
+6. 群聊、单聊和 @我：采集与当前用户相关的决策、任务、进度、问题、承诺和后续动作。
 
-## Output Rules
+## 群聊和单聊采集规则
 
-- Keep wording formal and reusable.
-- Prefer management-facing prose over chatty narration.
-- Do not overquote chat messages.
-- Do not rely only on chat history when calendar access is available. Before finalizing, check whether the date range contains meetings, reviews, training sessions, project discussions, or leave/status events that should appear in the summary or ledger.
-- Do not omit important project communication just because it appears in calendar or department materials rather than direct chat messages.
-- For recurring or strategic projects, actively check obvious project keywords from the evidence. If a key project appears in the user's correction, add that keyword to future evidence collection heuristics.
-- Keep each item atomic.
-- Unless the user explicitly overrides it, treat `吕夏苗` as the fixed report owner, and summarize only work attributable to `吕夏苗`.
-- Remove duplicates across sections. One event should live in the best-fit section only.
-- If the same event appears in both summary and ledger, that is expected; avoid repeating it in multiple sections.
-- The document title must use `吕夏苗钉钉周工作总结（cu）` (with optional date range suffix), not a guessed name from chat participants.
-- When writing to DingTalk Docs, if a same-name document already exists in the target folder, delete it first and then create a brand-new document for the new summary; do not overwrite the old document in place.
-- When writing to DingTalk Docs, default to the fixed target folder `https://alidocs.dingtalk.com/i/nodes/D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP` unless the user explicitly overrides it.
-- When writing to DingTalk Docs, delete same-name documents in the target folder before creating the new final document.
+钉钉 MCP 读不了聊天历史时，必须通过 Computer Use 操作钉钉客户端采集群聊、单聊和 @我 证据。不要因为 MCP 没有聊天历史接口就静默跳过聊天来源。
 
-## Template
+采集聊天证据时：
 
-Read [references/template.md](references/template.md) when you need the exact document structure, section pattern, or ledger format.
+- 优先查看 @当前用户、最近单聊、近期工作群、项目群、会议相关群。
+- 使用日程、待办、审批、文档、表格、AI 表格中发现的项目名、会议名、审批名、任务名、客户名和系统名作为检索关键词。
+- 只纳入可归属到当前用户的工作证据，包括本人发送的消息、明确分配给本人的任务、本人被 @ 或被点名负责的事项、本人参与决策或承诺跟进的事项。
+- 私聊内容只做工作事实概括，不长篇引用原文，不输出无关隐私内容。
+- 如果 Computer Use 无法访问钉钉客户端、登录状态不可用、搜索结果受限或聊天记录不可读，必须在“未覆盖/受限来源”中说明。
+
+## 证据判断
+
+采集后先整理证据台账，再写总结。每条可用证据建议记录为：
+
+`日期｜事项｜来源｜归属｜结果`
+
+来源写法保持简洁，例如：
+
+- `钉钉日程 / 会议标题`
+- `待办 / 任务标题`
+- `OA审批 / 审批标题`
+- `文档 / 文档名`
+- `表格 / 表格名`
+- `AI表格 / 表名`
+- `群聊 / 群名`
+- `单聊 / 人名`
+
+只保留能说明实际工作的证据。忽略纯通知、系统消息、签到、步数、普通提醒、无业务含义的抄送和无法归属到当前用户的泛泛讨论。
+
+如果同一事项出现在多个来源中，合并为一条工作事项，并保留主要来源；如果来源之间存在冲突，优先级为：审批详情、日程详情、待办详情、文档、表格、AI 表格、聊天概括。无法确认的地方要写明不确定性。
+
+## 分类规则
+
+最终按五个固定板块输出，其中第 0 部分是概览，第 1-4 部分是工作分类。每条工作只能归入一个最合适的分类，不要跨板块重复。
+
+0. 本周概览：用 3-5 句话概述本周工作重点、主要推进、问题处理、协作情况和结果。
+1. 发现与解决问题：排查、风险识别、问题处理、流程优化、纠偏、故障或阻塞解决。
+2. 业务与培训：需求推进、交付上线、客户支持、业务材料、内容建设、培训参与或组织。
+3. 管理与协作：会议、评审、跨部门对齐、任务跟进、资源协调、审批协同、项目节奏管理。
+4. 学习与创新：工具探索、AI 应用、流程自动化、新方法沉淀、可复用模板或效率改进。
+
+分类时以事项的主要工作性质为准。例如，会议本身一般归入“管理与协作”；会议推动的需求交付可归入“业务与培训”；会议中发现并解决的风险可归入“发现与解决问题”。
+
+## 输出格式
+
+默认标题：
+
+`当前用户姓名钉钉周工作总结（YYYY年M月D日-YYYY年M月D日）`
+
+正文结构：
+
+```md
+# 姓名钉钉周工作总结（YYYY年M月D日-YYYY年M月D日）
+
+## 0. 本周概览
+
+用 3-5 句话概述本周工作重点。
+
+## 1. 发现与解决问题
+
+本周在问题发现与处理方面，……
+
+1、……
+2、……
+3、……
+
+## 2. 业务与培训
+
+本周在业务与培训方面，……
+
+1、……
+2、……
+3、……
+
+## 3. 管理与协作
+
+本周在管理与协作方面，……
+
+1、……
+2、……
+3、……
+
+## 4. 学习与创新
+
+本周在学习与创新方面，……
+
+1、……
+2、……
+3、……
+```
+
+如果用户要求可追溯，或证据来源较复杂，追加“证据台账”：
+
+```md
+## 证据台账
+
+1、日期：M月D日｜事项：……｜来源：……｜归属：……｜结果：……
+2、日期：M月D日｜事项：……｜来源：……｜归属：……｜结果：……
+```
+
+如果存在无法读取、无法确认或没有返回结果的来源，追加“未覆盖/受限来源”：
+
+```md
+## 未覆盖/受限来源
+
+1、群聊 / 单聊：当前 MCP 未暴露聊天历史读取接口，已通过 Computer Use 尝试采集；若客户端不可访问，说明具体限制。
+2、AI 表格：未发现与本周项目关键词匹配的记录。
+```
+
+## 写入钉钉文档
+
+当用户附带钉钉文档链接或明确要求写入钉钉文档时：
+
+1. 判断链接类型：如果是具体文档链接，优先将内容写入该文档；如果是文件夹或节点链接，在该位置创建总结文档。
+2. 文档标题默认使用 `当前用户姓名钉钉周工作总结（YYYY年M月D日-YYYY年M月D日）`，除非用户指定标题。
+3. 如果是在文件夹中创建文档，先列出目标文件夹，查找完全同名文档；如存在同名文档，先删除同名文档，再创建新文档。
+4. 如果当前会话没有删除文档工具，或删除失败，不要创建带后缀的重复文档；停止写入并向用户说明阻塞。
+5. 创建或更新后读取回文档内容，确认标题、概览和四个板块存在，再向用户返回文档链接。
+
+## 质量要求
+
+- 全文使用中文，语气正式，可直接粘贴到周报。
+- 写具体工作，不写泛泛的“使用钉钉较多”“沟通频繁”等统计性描述。
+- 尽量包含项目名、会议名、审批名、任务名、交付物、决策、风险、结果和后续状态。
+- 每个要点先写动作和结果，再补充协作对象或来源背景。
+- 不长篇引用聊天原文，不输出与周报无关的隐私内容。
+- 不把同一工作事项重复放入多个板块。
+- 证据不足时不要编造结论，应写成“未发现明确结果”或放入受限来源说明。
+- 读不到聊天历史时，必须说明 MCP 限制，并使用 Computer Use 尝试从钉钉客户端采集。
+
+## 参考模板
+
+需要更稳定的文档骨架时，读取 `references/template.md`。

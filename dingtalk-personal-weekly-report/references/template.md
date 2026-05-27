@@ -1,75 +1,73 @@
-# Template
+# 模板
 
-Use this structure when the user wants one document that supports both direct submission and event traceability.
+当用户需要一份既能直接提交周报、又能保留证据追溯的钉钉一周工作总结时，使用本模板。
 
-When the final output is written to DingTalk Docs:
-- default to the fixed target folder `https://alidocs.dingtalk.com/i/nodes/D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP` unless the user explicitly overrides it
-- delete any same-name document in the same target folder before creating the new one
+如果最终内容写入钉钉文档：
 
-## Document skeleton
+- 用户给出具体文档链接时，写入该文档。
+- 用户给出文件夹或节点链接时，在该位置创建文档。
+- 在文件夹中新建文档前，先删除完全同名文档，再创建新文档。
+- 如果无法删除同名文档，不要创建自动带后缀的重复文档。
+
+## 文档骨架
 
 ```md
-# 吕夏苗钉钉周工作总结（cu）
+# 姓名钉钉周工作总结（YYYY年M月D日-YYYY年M月D日）
 
-**时间范围：YYYY年M月D日-YYYY年M月D日**
+## 0. 本周概览
 
-## 本周小结
-
-一段 2-3 句的总述，概括本周重点。
+本周主要围绕……推进工作，重点完成……。在问题处理方面，……。在协作方面，……。整体上，……。
 
 ## 1. 发现与解决问题
 
-本周在问题发现与处理方面，……
+本周在问题发现与处理方面，围绕风险识别、阻塞排查和流程优化形成了以下进展。
+
 1、……
 2、……
-
-【台账】
-
-1. 时间：5月6日｜事项：……｜来源：群名 / 人名 / 事项关键词。
+3、……
 
 ## 2. 业务与培训
 
-本周在业务与培训方面，……
+本周在业务与培训方面，围绕需求推进、交付支持、客户或内部培训形成了以下进展。
+
 1、……
 2、……
-
-【台账】
-
-1. 时间：5月8日｜事项：……｜来源：群名 / 人名 / 事项关键词。
+3、……
 
 ## 3. 管理与协作
 
-本周在管理与协作方面，……
+本周在管理与协作方面，围绕会议评审、跨部门对齐、任务跟进和资源协调形成了以下进展。
+
 1、……
 2、……
-
-【台账】
-
-1. 时间：5月8日｜事项：……｜来源：群名 / 人名 / 事项关键词。
+3、……
 
 ## 4. 学习与创新
 
-本周在学习与创新方面，……
+本周在学习与创新方面，围绕工具探索、AI 应用、流程自动化和方法沉淀形成了以下进展。
+
 1、……
 2、……
+3、……
 
-【台账】
+## 证据台账
 
-1. 时间：5月9日｜事项：……｜来源：群名 / 人名 / 事项关键词。
+1、日期：M月D日｜事项：……｜来源：钉钉日程 / 会议标题｜归属：本人参加并负责跟进……｜结果：……
+2、日期：M月D日｜事项：……｜来源：群聊 / 群名｜归属：本人被明确 @ 并承诺处理……｜结果：……
+
+## 未覆盖/受限来源
+
+1、群聊 / 单聊：……
+2、AI 表格：……
 ```
 
-## Item writing rules
+## 写作规则
 
-- Summary list items should be short enough to paste into a weekly report directly.
-- Ledger items should be more exact than summary items.
-- Use Chinese punctuation consistently.
-- If a source mixes two events, split them before writing.
-- Unless the user explicitly gives another range, compute the report range as the 7-day window ending on the current date.
-- The report title must use the confirmed report owner's name. Do not replace it with names that appear in the evidence.
-
-## Common corrections
-
-- Split `上线` and `收录` into separate items when they come from different people or groups.
-- Move purely exploratory AI tooling content into `学习与创新` unless it directly solved a production issue.
-- Put coordination-only work into `管理与协作`, not `发现与解决问题`.
-- If a draft title accidentally uses another colleague's name, correct the title first, then re-check whether any items were also wrongly attributed.
+- 本周概览写 3-5 句主题摘要。
+- 四个固定板块都要包含一段概括和 `1、2、3、` 编号要点。
+- 每条工作只归入一个最合适的板块，不跨板块重复。
+- 要点应短而具体，可直接粘贴到周报。
+- 台账应比总结更具体，写清日期、事项、来源、归属和结果。
+- 使用中文标点，避免英文说明。
+- 如果一条来源混合多个事项，先拆分再归类。
+- 如果证据不足，不编造结果，应写明未确认或列入受限来源。

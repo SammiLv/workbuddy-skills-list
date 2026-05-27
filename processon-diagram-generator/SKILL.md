@@ -5,6 +5,7 @@ description: |
 
 author: ProcessOn
 version: 2.5.0
+agent_created: false
 dependencies:
   bins:
     - python3

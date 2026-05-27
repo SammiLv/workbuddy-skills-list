@@ -2,6 +2,7 @@
 name: computer-use
 description: Full desktop computer use for headless Linux servers. Xvfb + XFCE virtual desktop with xdotool automation. 17 actions (click, type, scroll, screenshot, drag, etc). Unlike OpenClaw's browser tool, operates at the X11 level so websites cannot detect automation. Includes VNC for live viewing.
 version: 1.2.1
+agent_created: false
 ---
 
 # Computer Use Skill
