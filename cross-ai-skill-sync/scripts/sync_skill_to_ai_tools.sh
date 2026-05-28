@@ -21,6 +21,7 @@ TOOL_DIRS=(
 MODE="skill"
 SYNC_NAME=""
 TARGET_SELECTOR=""
+FORCE=0
 
 usage() {
   cat <<'USAGE'
@@ -42,6 +43,9 @@ usage() {
 
   sync_skill_to_ai_tools.sh --file .gitignore all
       将 skills 根目录下的指定文件同步到所有其它 AI 工具。
+
+  sync_skill_to_ai_tools.sh --skill weekly-report-summary all --force
+      源不是所有工具中的最新版本时，跳过确认并继续推送。谨慎使用。
 
 支持的工具名：
   codex cursor workbuddy opencode claude trae trae-cn cline gemini
@@ -76,7 +80,16 @@ tool_dir_for() {
 }
 
 mtime_for() {
-  stat -f '%m' "$1"
+  if [ -f "$1" ]; then
+    stat -f '%m' "$1"
+  else
+    find "$1" -type f \
+      ! -name '.DS_Store' \
+      ! -name 'LOCAL_SKILLS_INDEX.md' \
+      -exec stat -f '%m' {} + \
+      | sort -nr \
+      | head -n 1
+  fi
 }
 
 copy_to_target() {
@@ -104,6 +117,9 @@ while [ $# -gt 0 ]; do
     --help|-h)
       usage
       exit 0
+      ;;
+    --force)
+      FORCE=1
       ;;
     --file)
       MODE="file"
@@ -173,14 +189,13 @@ validate_source() {
 
 current_source_path="$(source_path_for_root "$CURRENT_SKILLS_DIR" "$SYNC_NAME")"
 
-if [ -z "$TARGET_SELECTOR" ]; then
+find_newest_source() {
   newest_source=""
   newest_root=""
   newest_mtime=0
 
   for ((i = 0; i < ${#TOOL_DIRS[@]}; i++)); do
     root="${TOOL_DIRS[$i]}"
-    [ "$root" != "$CURRENT_SKILLS_DIR" ] || continue
     [ -d "$root" ] || continue
 
     candidate="$(source_path_for_root "$root" "$SYNC_NAME")"
@@ -193,9 +208,13 @@ if [ -z "$TARGET_SELECTOR" ]; then
       newest_root="$root"
     fi
   done
+}
 
-  if [ -z "$newest_source" ]; then
-    printf '错误：其它 AI 工具中没有找到可同步的%s：%s\n' "$([ "$MODE" = "file" ] && printf '根目录文件' || printf ' skill')" "$SYNC_NAME" >&2
+if [ -z "$TARGET_SELECTOR" ]; then
+  find_newest_source
+
+  if [ -z "$newest_source" ] || [ "$newest_root" = "$CURRENT_SKILLS_DIR" ]; then
+    printf '错误：其它 AI 工具中没有找到比当前工具更新的%s：%s\n' "$([ "$MODE" = "file" ] && printf '根目录文件' || printf ' skill')" "$SYNC_NAME" >&2
     exit 1
   fi
 
@@ -212,6 +231,31 @@ validate_source "$current_source_path" || {
   printf '错误：当前工具中不存在可同步的%s：%s\n' "$([ "$MODE" = "file" ] && printf '根目录文件' || printf ' skill')" "$current_source_path" >&2
   exit 1
 }
+
+find_newest_source
+current_mtime="$(mtime_for "$current_source_path")"
+if [ "$FORCE" -ne 1 ] && [ -n "$newest_source" ] && [ "$newest_mtime" -gt "$current_mtime" ]; then
+  printf '警告：当前源不是最新版本，继续同步会用旧版本覆盖更新内容。\n' >&2
+  printf '当前源：%s\n' "$current_source_path" >&2
+  printf '当前源最新文件时间戳：%s\n' "$current_mtime" >&2
+  printf '检测到更新来源：%s\n' "$newest_source" >&2
+  printf '更新来源最新文件时间戳：%s\n' "$newest_mtime" >&2
+  if [ ! -t 0 ]; then
+    printf '非交互环境无法确认，已停止同步。如确认要覆盖，请追加 --force。\n' >&2
+    exit 1
+  fi
+  printf '是否继续用当前源覆盖其它工具？输入 yes 确认：' >&2
+  read -r confirm_outdated
+  case "$confirm_outdated" in
+    yes|YES|y|Y)
+      printf '已确认：继续使用当前源同步。\n' >&2
+      ;;
+    *)
+      printf '已取消同步。\n' >&2
+      exit 1
+      ;;
+  esac
+fi
 
 if [ "$TARGET_SELECTOR" = "all" ]; then
   target_dirs=("${TOOL_DIRS[@]}")

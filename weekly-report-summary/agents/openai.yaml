@@ -1,7 +1,7 @@
 interface:
   display_name: "产品部周报汇总"
   short_description: "归档产品部个人周报并按主管模板生成部门周报汇总"
-  default_prompt: "Use $产品部周报汇总 to archive in-scope received weekly reports into DingTalk docs first, then generate a department weekly summary using the fixed 产品部周报汇总 template."
+  default_prompt: "Use $weekly-report-summary to archive in-scope received weekly reports into DingTalk docs first, then generate a department weekly summary using the fixed 产品部周报汇总 template."
 
 policy:
   allow_implicit_invocation: true
