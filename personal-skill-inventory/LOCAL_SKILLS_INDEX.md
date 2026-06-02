@@ -1,7 +1,8 @@
-# 个人 Skills 清单（WorkBuddy）
+# WorkBuddy 个人 Skill 清单
 
-> **范围说明**：仅整理自建 skills，不含系统、插件或市场来源 skills。
-> **最后更新时间**：2026-06-02 14:55（Asia/Shanghai）
+> **范围说明**：仅整理自建 skills，不含系统、插件或市场安装的 skills。
+>
+> **最后更新时间**：2026-06-02 18:41 CST
 
 ---
 
@@ -17,85 +18,74 @@
 
 - **触发器**：`$cross-ai-skill-sync`
 - **路径**：`/Users/sammilv/.workbuddy/skills/cross-ai-skill-sync/SKILL.md`
-- **概述**：跨 AI 工具同步 skill，支持在 Codex、Cursor、WorkBuddy、OpenCode、Claude、Trae 等工具间同步同名 skill 或根目录配置文件。
+- **概述**：将本地 skill 的变更或 skills 根目录文件同步到其它 AI 工具的 skills 目录。
 
 ### WorkBuddy工作日报
 
 - **触发器**：`$WorkBuddy工作日报`
 - **路径**：`/Users/sammilv/.workbuddy/skills/daily-workbuddy-work-summary/SKILL.md`
-- **概述**：根据 WorkBuddy 每日活动记录生成中文工作日报，默认汇总最近一个有实际工作的前一天。
+- **概述**：根据 WorkBuddy 每日活动记录生成中文工作日报。
 
 ### dingtalk-leader-meeting-topics
 
 - **触发器**：`$dingtalk-leader-meeting-topics`
 - **路径**：`/Users/sammilv/.workbuddy/skills/dingtalk-leader-meeting-topics/SKILL.md`
-- **概述**：使用 dws skill 回顾本周钉钉群沟通和个人聊天记录，整理需与组长沟通的议题，并通过钉钉单聊发送给当前用户本人。
+- **概述**：使用 dws 从钉钉群沟通和个人聊天中整理组长例会议题，并发送钉钉单聊消息。
 
 ### dingtalk-personal-weekly-report
 
 - **触发器**：`$dingtalk-personal-weekly-report`
 - **路径**：`/Users/sammilv/.workbuddy/skills/dingtalk-personal-weekly-report/SKILL.md`
-- **概述**：基于钉钉数据生成当前用户一周工作总结，通过 dws 采集日程、会议纪要、文档、表格、群聊等工作证据。
+- **概述**：基于钉钉数据生成当前用户一周工作总结。
 
 ### 个人技能清单
 
 - **触发器**：`$个人技能清单`
 - **路径**：`/Users/sammilv/.workbuddy/skills/personal-skill-inventory/SKILL.md`
-- **概述**：整理当前 AI 工具的个人 skills 清单，记录每个 skill 的名称、概述和触发条件。
+- **概述**：列出、审计、总结或更新当前 AI 工具的个人 skills 清单。
 
 ### 预约钉钉会议
 
 - **触发器**：`$预约会议`
 - **路径**：`/Users/sammilv/.workbuddy/skills/reserve-dingtalk-meeting/SKILL.md`
-- **概述**：自动创建钉钉会议，支持查询会议室可用性、按参会人数选择会议室、邀请参会人并返回会议详情。
+- **概述**：自动创建钉钉会议，包括查询会议室可用性、选择最佳会议室、邀请参会人。
 
 ### 同步C端注册数
 
 - **触发器**：`$同步C端注册数`
 - **路径**：`/Users/sammilv/.workbuddy/skills/toc-registration-sync/SKILL.md`
-- **概述**：将钉钉文档「产品部部门周报汇总」中的 ToC 用户增量数据同步更新到「产品部项目管理」AI 表格。
+- **概述**：将周报中的 C 端注册数据同步更新到项目管理 AI 表格。
 
 ### 组长例会议题整理
 
-- **触发器**：`$组长例会议题`
+- **触发器**：`$组长例会议题`、`$整理组长会议题`
 - **路径**：`/Users/sammilv/.workbuddy/skills/weekly-leader-meeting-agenda/SKILL.md`
-- **概述**：根据本周钉钉间接证据整理需跟组长沟通的议题，并写入每周一下午组长例会的会议纪要文档。
+- **概述**：从钉钉间接证据中提炼组长例会议题并写入会议纪要文档。
 
 ### 产品部周报汇总
 
 - **触发器**：`$weekly-report-summary`
 - **路径**：`/Users/sammilv/.workbuddy/skills/weekly-report-summary/SKILL.md`
-- **概述**：将收到的产品部个人周报归档为钉钉文档，并按模板生成部门周报汇总。
+- **概述**：将收到的个人周报归档为钉钉文档，再按模板生成部门周报汇总。
 
 ### WorkBuddy工作周报
 
 - **触发器**：`$WorkBuddy工作周报`
 - **路径**：`/Users/sammilv/.workbuddy/skills/weekly-workbuddy-work-summary/SKILL.md`
-- **概述**：从 WorkBuddy 本地记忆文件生成中文周工作总结，默认汇总当前周的工作活动。
+- **概述**：从 WorkBuddy 本地记忆文件生成中文周工作总结。
 
 ---
 
-## 外部 Skills（未纳入清单）
+## 触发描述评估
 
-以下 skills 为系统、插件或市场来源，不在自建清单范围内：
-
-- `computer-use` — 系统内置 skill
-- `processon-diagram-generator` — 外部市场 skill
-- `dws` — 钉钉全产品 skill（按规则排除）
+当前所有技能的触发条件均较为清晰，未发现明显缺失或过弱的情况。
 
 ---
 
-## 质量提示
+## 已排除的外部 Skills
 
-| Skill | 状态 |
-|-------|------|
-| `all-ai-tools-weekly-summary` | frontmatter 缺少 `agent_created: true` 标记，建议补充 |
-| `cross-ai-skill-sync` | frontmatter 缺少 `agent_created: true` 标记，建议补充 |
-| `daily-workbuddy-work-summary` | frontmatter 缺少 `agent_created: true` 标记，建议补充 |
-| `dingtalk-leader-meeting-topics` | frontmatter 缺少 `agent_created: true` 标记，建议补充 |
-| `dingtalk-personal-weekly-report` | frontmatter 缺少 `agent_created: true` 标记，建议补充 |
-| `personal-skill-inventory` | frontmatter 缺少 `agent_created: true` 标记，建议补充 |
-| `reserve-dingtalk-meeting` | frontmatter 缺少 `agent_created: true` 标记，建议补充 |
-| `weekly-workbuddy-work-summary` | frontmatter 缺少 `agent_created: true` 标记，建议补充 |
+以下 skills 为外部安装，未纳入本清单：
 
-> 建议为以上未标记 `agent_created: true` 的 skill 补充该字段，以便更准确地识别自建 skills。
+- `computer-use` — 外部安装的系统级 skill
+- `processon-diagram-generator` — 外部安装的图表生成 skill
+- `dws` — 外部安装的钉钉能力 skill

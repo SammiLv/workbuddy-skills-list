@@ -33,25 +33,25 @@ Apply these defaults unless the user says otherwise:
 
 If the user omits both `会议时间` and `邀请人`, ask one concise question for the missing required values. If only `会议名称` is missing, do not ask; use the default title.
 
-## Required DingTalk MCP Tools
+## Required dws Commands
 
-Use MCP tools for this workflow. Do not fall back to operating the DingTalk desktop UI unless the user explicitly asks for UI operation.
+All operations go through the `dws` CLI. Do not use MCP tools or the DingTalk desktop UI unless the user explicitly asks for UI operation.
 
-Before calling any DingTalk MCP tool, inspect its schema. Prefer the currently configured DingTalk calendar MCP server. In this environment it is commonly named `dingtalk-calendar-mcp`; older skills may mention `user-dingding-calendar-mcp`, but do not require that exact server name.
+Before constructing any command, use `dws schema <path>` to confirm parameter names, required fields, and flag aliases when uncertain.
 
-Use whichever loaded MCP server exposes these calendar operations:
+Commands used in this workflow:
 
-- `query_busy_status`
-- `query_available_meeting_room`
-- `create_calendar_event`
-- `add_meeting_room`
-- `add_calendar_participant`
-- `list_suggested_event_times`
-- `list_calendar_events`
+| Step | dws Command | Purpose |
+|------|-------------|---------|
+| 1 | `dws contact user search --query "<name>" --format json` | Resolve attendee names to `userId` |
+| 2 | `dws calendar busy search --users <userIds> --start <ISO> --end <ISO> --format json` | Check organizer/attendee conflicts |
+| 3 | `dws calendar event suggest --users <userIds> --start <ISO> --end <ISO> --duration <min> --format json` | Recommend free time slots |
+| 4 | `dws calendar room search --start <ISO> --end <ISO> --available --format json` | Find available meeting rooms |
+| 5 | `dws calendar event create --title ... --start ... --end ... --attendees ... --format json` | Create the event with attendees |
+| 6 | `dws calendar participant add --event <eventId> --users <userIds> --format json` | Add participants separately if needed |
+| 7 | `dws calendar room add --event <eventId> --rooms <roomId> --format json` | Book the selected room |
 
-For attendee lookup, use the DingTalk contacts MCP service when available. In this environment it is commonly named `dingtalk-contacts-mcp`. Inspect the contacts tool schema first, search invitees by the user's supplied names, phone numbers, emails, or other clues, and use the returned supported participant identifiers such as `userId` or `openDingTalkId` when creating the meeting or adding participants.
-
-If no DingTalk calendar MCP tools are available in the current conversation, stop and tell the user that the MCP tools need to be reloaded or the conversation needs to be restarted with the rebuilt MCP configuration. Do not create the meeting through Computer Use as an automatic fallback.
+All commands must include `--format json` for machine-readable output.
 
 ## Time Parsing
 
@@ -79,23 +79,23 @@ Resolve invited people before creating the event.
 
 Rules:
 
-- Use `dingtalk-contacts-mcp` to look up every requested invitee before creating the calendar event.
-- Add resolved contacts to the meeting by passing their supported DingTalk identifiers to `create_calendar_event` or `add_calendar_participant`.
-- Do not assume a plain Chinese name can be passed directly to calendar APIs.
-- Do not assume DingTalk AI-style `@Name` mentions can be passed directly to structured MCP fields.
-- Prefer exact DingTalk user identifiers returned by lookup tools.
-- Reuse identifiers from previous DingTalk tool results in the same conversation when reliable.
+- Use `dws contact user search --query "<name>" --format json` to look up every requested invitee.
+- Parse the JSON output: the result array is at `result[].` with fields `userId`, `name`, `openDingTalkId`.
+- Add resolved contacts to the meeting by passing their `userId` values to `dws calendar event create --attendees` (comma-separated) or to `dws calendar participant add --users`.
+- Do not assume a plain Chinese name can be passed directly to calendar commands.
+- Prefer exact `userId` values returned by the search command.
+- Reuse identifiers from previous dws results in the same conversation when reliable.
 - If several people share the same name, ask for distinguishing information.
 - If attendee identifiers cannot be resolved, default to creating the meeting without those unresolved attendees instead of blocking, as long as the time and room can be handled.
 - If only some attendees can be resolved, create the meeting with the resolved attendees and list unresolved attendees as pending follow-up.
 - Never claim unresolved attendees were invited. The final response must clearly list them under `待补充`.
 
-Known DingTalk calendar MCP nuance:
+Known dws nuance:
 
-- `list_suggested_event_times` may accept plain names or `@Name` strings for availability recommendation, but this does not prove those strings can be used to invite attendees.
-- `create_calendar_event.attendees` expects userId values; `create_calendar_event.openDingTalkIds` expects openDingTalkId values.
-- `add_calendar_participant.attendeesToAdd` expects userId values and may return `user id is required` if given names or `@Name` strings.
-- After creating a meeting with attendees, verify the returned `attendees` list or call `get_calendar_participants` when available. If requested attendees are missing, keep the meeting unless the user asked otherwise, and tell the user it was created without those attendees.
+- `dws calendar event suggest` may accept plain names in its `--users` field, but this does not prove those strings can be used to invite attendees.
+- `dws calendar event create --attendees` expects `userId` values (comma-separated).
+- `dws calendar participant add --users` expects `userId` values and may fail if given plain names.
+- After creating a meeting, verify the returned attendees list. If requested attendees are missing, keep the meeting unless the user asked otherwise, and tell the user it was created without those attendees.
 - The DingTalk desktop AI/assistant natural-language entry point may support `@Name` resolution, but only use Computer Use for that path when the user explicitly asks for UI operation; confirm before sending a command that can create or modify a real calendar event.
 
 Use the number of invited people plus the organizer, when known, as the room capacity target. If the organizer count is uncertain, rank rooms by the invited attendee count and prefer one slightly larger room over one too small.
@@ -106,17 +106,18 @@ The user explicitly wants the assistant to decide the meeting room automatically
 
 Workflow:
 
-1. Call `query_available_meeting_room` for the final time range.
-2. Filter to rooms available for the full meeting duration.
-3. Rank rooms by capacity fit for attendee count:
+1. Run `dws calendar room search --start <ISO> --end <ISO> --available --format json` for the final time range.
+2. Parse the JSON: available rooms are in `result.result[]` (note the nested `result` structure). Each room has `roomId`, `roomName`, `capacity`, `labels`.
+3. Filter to rooms available for the full meeting duration (the `--available` flag already handles this).
+4. Rank rooms by capacity fit for attendee count:
    - prefer the smallest room whose capacity is at least the attendee count
    - for `1-4` attendees, prefer small rooms
    - for `5-8` attendees, prefer medium rooms
    - for `9+` attendees, prefer larger rooms
-4. Use facilities as a tiebreaker when available:
-   - prefer `Video Conference`, `TV`, or `Projector` for meetings with more than two attendees
-5. If no room has capacity metadata, choose the first available room returned by DingTalk and state that capacity data was unavailable.
-6. If no room is available, create the meeting without a room only after telling the user and asking whether to continue or choose another time.
+5. Use facilities as a tiebreaker when available:
+   - prefer rooms with `视频会议` (Video Conference), `电视` (TV), or `投影仪` (Projector) for meetings with more than two attendees
+6. If no room has capacity metadata, choose the first available room returned and state that capacity data was unavailable.
+7. If no room is available, create the meeting without a room only after telling the user and asking whether to continue or choose another time.
 
 Do not ask the user to choose a room unless every suitable room is unavailable or the API result is ambiguous enough that automatic selection would be unreliable.
 
@@ -124,14 +125,23 @@ Do not ask the user to choose a room unless every suitable room is unavailable o
 
 1. Parse the user request into title, time range, and invitees.
 2. Apply defaults for omitted optional fields.
-3. Use `dingtalk-contacts-mcp` to resolve attendees to DingTalk identifiers when possible; keep unresolved invitees as pending attendees.
-4. Check organizer/calendar conflicts for the target time with `list_calendar_events` or `query_busy_status` when available.
+3. Use `dws contact user search` to resolve attendees to DingTalk `userId` values; keep unresolved invitees as pending attendees.
+4. Check organizer/calendar conflicts for the target time with `dws calendar event list` or `dws calendar busy search` when available.
 5. If there is a conflict, tell the user the conflicting event title/time and ask whether to keep both or reschedule.
-6. Query available rooms and choose one using the Automatic Room Selection rules.
-7. Call `create_calendar_event` with the resolved title, time, reminder, room, and any resolved attendees. If no attendees are resolved, create the event without attendees.
-8. If participants are not supported inline or some must be added separately, call `add_calendar_participant`.
-9. Call `add_meeting_room` for the selected room.
-10. Return the final result in the output template.
+6. Query available rooms with `dws calendar room search --available` and choose one using the Automatic Room Selection rules.
+7. Call `dws calendar event create` with the resolved title, time, and resolved attendees via `--attendees`.
+   ```bash
+   dws calendar event create \
+     --title "<title>" \
+     --start "<ISO-start>" --end "<ISO-end>" \
+     --attendees "<userId1>,<userId2>" \
+     --desc "<description>" \
+     --format json
+   ```
+8. Extract the created event ID from the JSON response (check `result.id` or `result.eventId`).
+9. Call `dws calendar room add --event <eventId> --rooms <roomId> --format json` to book the selected room.
+10. If any attendees could not be added in step 7, call `dws calendar participant add --event <eventId> --users <userIds> --format json`.
+11. Return the final result in the output template.
 
 ## Output Template
 
