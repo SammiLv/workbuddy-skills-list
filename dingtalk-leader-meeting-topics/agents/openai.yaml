@@ -1,0 +1,4 @@
+interface:
+  display_name: "钉钉组长例会议题"
+  short_description: "从本周钉钉群沟通和个人聊天记录整理需与组长沟通的议题，并写入每周一下午组长例会日程纪要。"
+  default_prompt: "请使用 $dingtalk-leader-meeting-topics，根据本周周一到周五的钉钉群沟通和个人聊天记录整理组长例会议题，并写入每周一下午组长例会的日程会议纪要。"

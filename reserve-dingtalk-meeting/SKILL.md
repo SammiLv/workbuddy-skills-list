@@ -1,5 +1,5 @@
 ---
-name: 预约钉钉会议
+name: reserve-dingtalk-meeting
 description: Use when the user invokes $预约会议 or asks to automatically create a DingTalk meeting from a meeting time and invited people. The skill should default the meeting title when omitted, query DingTalk room availability, choose the best available room by attendee count, create the calendar meeting, book the room, invite attendees, and return the final meeting details.
 ---
 

@@ -129,7 +129,7 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
   - **`history.jsonl` 的 `timestamp` 是毫秒整数，禁止用 `grep '2026-05-xx'` 过滤，否则会命中 0 条。**
   - 第一步：执行 `python3 "$SKILL_DIR/scripts/scan-claude-code-sessions.py"`，输出 `sessionId \t 时间 \t display \t project`。
   - 第二步：`find ~/.claude/projects -name '<sessionId>.jsonl'`，再 `grep -m 80 '"role":"user"\|"type":"result"\|"summary"' <session.jsonl> | head -150`。
-  - 第三步（可选）：`python3 "$SKILL_DIR/scripts/scan-claude-code-memory.py"`；memory 已覆盖时可不再读 jsonl。
+  - 第三步：`python3 "$SKILL_DIR/scripts/scan-claude-code-memory.py"`。记忆文件为强制校验步骤，必须执行。
 
 - **Codex**
   - 读 `~/.codex/session_index.jsonl`，按 `updated_at`（ISO 8601）筛选 session id，再读 `~/.codex/sessions/<id>.jsonl`。
@@ -137,6 +137,7 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
     ```bash
     grep '<日期范围>' ~/.codex/session_index.jsonl | head -30
     grep -m 60 '"role":"user"\|"content"' ~/.codex/sessions/<id>.jsonl | head -150
+  - **关键词扩展搜索**：从 session_index 提取全量会话标题后，做一次概念关键词二次扫描（DWS\|CLI\|dws\|升级\|迁移\|替换\|权限\|授权\|改用\|API），命中标题的会话在读取内容时分配更多关注（上限仍为 150 行），避免重要工作因标题措辞不同而被遗漏。
     ```
 
 - **OpenCode**
@@ -160,7 +161,7 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
   - **优先查 `~/.workbuddy/workbuddy.db` 的 sessions 表**，不要只扫 jsonl；跨工作区会话标题在 DB 中。
   - 第一步：按 `created_at`（毫秒）筛选，取 `id`、`title`、`cwd`；命中数为 0 再降级查 jsonl。
   - 第二步：`find ~/.workbuddy/projects -name '<sessionId>.jsonl'`，再 `grep -m 40 '"role":"user"\|"input_text"\|"output_text"' <session.jsonl> | head -150`。
-  - 第三步（可选）：读取目标日期范围内的 `~/.workbuddy/projects/*/.workbuddy/memory/*.md`。
+  - 第三步：读取目标日期范围内的 `~/.workbuddy/projects/*/.workbuddy/memory/*.md`。记忆文件为强制校验步骤，必须执行。
   - 命令：
     ```bash
     sqlite3 ~/.workbuddy/workbuddy.db \
@@ -175,7 +176,34 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
 - 从 grep 已抽取的内容中归纳：用户任务、完成事项、关键产出、关键文件、验证结果、受阻原因。
 - 跳过：重复追问、纯闲聊、tool_call / tool_result 细节、临时日志、报错堆栈、token 或密钥。
 - 同一任务跨多个工具或多次会话出现时，合并为同一个工作主题，并标注涉及工具。
-- **不因信息不足而回头读取更多文件**；信息不足时用"看起来""可能"表述，不做无依据推断。
+- 同一数据源（同一 jsonl/DB 表）不重复读取；信息不足时用"看起来""可能"表述，不做无依据推断。不同数据源之间必须通过第 4.5 步交叉验证补齐。
+
+### 第 4.5 步：完整性交叉验证
+
+> **目的**：第 4 步从会话内容提取的工作主题，可能因会话标题措辞不精确或关键词缺失而遗漏重要工作。本步骤用不同数据源做补全校验。
+
+**方法（按顺序执行）：**
+
+1. **读记忆文件（按工具能力）**
+   - 读取已开通每日记忆的工具：WorkBuddy 和 Claude Code 目标日期范围内的所有 `YYYY-MM-DD.md`，提取工作主题记录。
+   - 其余工具（Cursor/Codex/OpenCode/Trae）无独立 markdown 记忆文件，直接使用第 3 步已提取的会话内容作为校验依据，无需额外读文件。
+
+2. **概念关键词扩展**
+   - 对全部工具的已提取内容（含记忆文件 + 第 3 步会话提取），搜索以下概念关键词，检查是否有未被归纳为独立主题的重要工作：
+     - 技术名词：`dws`、`DWS`、`CLI`、`MCP`、`API`、`token`、`沙盒`
+     - 动作词：`升级`、`迁移`、`替换`、`改为`、`改用`、`对比`、`复制`、`同步`
+     - 领域词：`权限`、`授权`、`数据源`、`数据采集`
+
+3. **与第 4 步结果比对**
+   - 若以下任一情况成立，补充或拆分主题：
+     - 某工作线在记忆文件或关键词扫描中出现，但未在第 4 步主题中体现 → **新增主题**
+     - 某概念关键词高频出现（≥3 条会话）但未对应任何独立主题 → **检查是否需拆分**
+     - 同一工作涉及的工具数与第 4 步列表不符 → **更新「涉及工具」字段**
+   - 补充内容需标注证据来源（如「依据 05-28 WorkBuddy 记忆文件」或「依据 Codex 会话关键词扫描」）。
+
+**约束**：
+- 不因本步骤回头重新读 jsonl 文件；仅使用已提取内容 + 记忆文件。
+- 比对发现的补充工作中，对信息不足的部分用"看起来""可能"表述。
 
 ### 第 5 步：汇总
 
