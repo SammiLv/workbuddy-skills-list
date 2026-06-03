@@ -1,91 +1,78 @@
-# WorkBuddy 个人 Skill 清单
+# WorkBuddy 个人本地 Skills 清单
 
-> **范围说明**：仅整理自建 skills，不含系统、插件或市场安装的 skills。
->
-> **最后更新时间**：2026-06-02 18:41 CST
+最后更新时间：2026-06-03 18:40:53 CST
 
----
+本文件仅记录当前由用户自建或个人维护的 WorkBuddy skills。范围为 `/Users/sammilv/.workbuddy/skills` 下的自建 skills，不包含系统内置、插件、市场安装、缓存或外部托管的 skills。
+
+- 触发器约定：使用 `$skill-name` 显式调用本地 skill。
+- 范围：仅自建 skills。
+- 排除：系统内置、插件、市场安装、缓存和外部托管 skills。
 
 ## Skill 列表
 
 ### AI工具一周使用总结
 
-- **触发器**：`$AI工具一周使用总结`
-- **路径**：`/Users/sammilv/.workbuddy/skills/all-ai-tools-weekly-summary/SKILL.md`
-- **概述**：从本地 AI 工具会话记录生成一周工作总结，支持单工具、多工具或全量汇总。
+- 触发器：`$AI工具一周使用总结`
+- 路径：`/Users/sammilv/.workbuddy/skills/all-ai-tools-weekly-summary/SKILL.md`
+- 概述：从本地 AI 工具会话记录生成一周工作总结
 
 ### cross-ai-skill-sync
 
-- **触发器**：`$cross-ai-skill-sync`
-- **路径**：`/Users/sammilv/.workbuddy/skills/cross-ai-skill-sync/SKILL.md`
-- **概述**：将本地 skill 的变更或 skills 根目录文件同步到其它 AI 工具的 skills 目录。
+- 触发器：`$cross-ai-skill-sync`
+- 路径：`/Users/sammilv/.workbuddy/skills/cross-ai-skill-sync/SKILL.md`
+- 概述：当用户需要把某个本地 skill 的变更或 skills 根目录文件同步到其它 AI 工具的 skills 目录时使用。适用于 Codex、Cursor、WorkBuddy、OpenCode、Claude、Trae、Trae CN、Cline、Gemini 等本地工具之间同步同名 skill、同步 .gitignore 等根目录文件，或建立经常性的跨工具 skill 维护流程。
 
 ### WorkBuddy工作日报
 
-- **触发器**：`$WorkBuddy工作日报`
-- **路径**：`/Users/sammilv/.workbuddy/skills/daily-workbuddy-work-summary/SKILL.md`
-- **概述**：根据 WorkBuddy 每日活动记录生成中文工作日报。
+- 触发器：`$WorkBuddy工作日报`
+- 路径：`/Users/sammilv/.workbuddy/skills/daily-workbuddy-work-summary/SKILL.md`
+- 概述：根据 WorkBuddy 每日活动记录生成中文工作日报，默认汇总最近一个有实际工作的前一天（从昨天开始回溯）。触发场景：用户要求总结昨天/今天/某日在 WorkBuddy 中完成的工作、生成工作日报、工作日志或每日回顾。
 
 ### dingtalk-leader-meeting-topics
 
-- **触发器**：`$dingtalk-leader-meeting-topics`
-- **路径**：`/Users/sammilv/.workbuddy/skills/dingtalk-leader-meeting-topics/SKILL.md`
-- **概述**：使用 dws 从钉钉群沟通和个人聊天中整理组长例会议题，并发送钉钉单聊消息。
+- 触发器：`$dingtalk-leader-meeting-topics`
+- 路径：`/Users/sammilv/.workbuddy/skills/dingtalk-leader-meeting-topics/SKILL.md`
+- 概述：use the dws skill to review this week's DingTalk group communication and personal chat records
 
 ### dingtalk-personal-weekly-report
 
-- **触发器**：`$dingtalk-personal-weekly-report`
-- **路径**：`/Users/sammilv/.workbuddy/skills/dingtalk-personal-weekly-report/SKILL.md`
-- **概述**：基于钉钉数据生成当前用户一周工作总结。
+- 触发器：`$dingtalk-personal-weekly-report`
+- 路径：`/Users/sammilv/.workbuddy/skills/dingtalk-personal-weekly-report/SKILL.md`
+- 概述：当用户需要基于钉钉数据生成当前用户一周工作总结时使用。
 
-### 个人技能清单
+### personal-skill-inventory
 
-- **触发器**：`$个人技能清单`
-- **路径**：`/Users/sammilv/.workbuddy/skills/personal-skill-inventory/SKILL.md`
-- **概述**：列出、审计、总结或更新当前 AI 工具的个人 skills 清单。
+- 触发器：`$personal-skill-inventory`
+- 路径：`/Users/sammilv/.workbuddy/skills/personal-skill-inventory/SKILL.md`
+- 概述：当用户想列出、审计、总结、记录或更新当前 AI 工具的个人 skills 清单时使用
 
-### 预约钉钉会议
+### reserve-dingtalk-meeting
 
-- **触发器**：`$预约会议`
-- **路径**：`/Users/sammilv/.workbuddy/skills/reserve-dingtalk-meeting/SKILL.md`
-- **概述**：自动创建钉钉会议，包括查询会议室可用性、选择最佳会议室、邀请参会人。
+- 触发器：`$reserve-dingtalk-meeting`
+- 路径：`/Users/sammilv/.workbuddy/skills/reserve-dingtalk-meeting/SKILL.md`
+- 概述：automatically create a DingTalk meeting
 
 ### 同步C端注册数
 
-- **触发器**：`$同步C端注册数`
-- **路径**：`/Users/sammilv/.workbuddy/skills/toc-registration-sync/SKILL.md`
-- **概述**：将周报中的 C 端注册数据同步更新到项目管理 AI 表格。
+- 触发器：`$同步C端注册数`
+- 路径：`/Users/sammilv/.workbuddy/skills/toc-registration-sync/SKILL.md`
+- 概述：将钉钉文档「产品部部门周报汇总」中【创新ToC用户增量明细】表格的「本周新增」和「总完成量」数据
 
 ### 组长例会议题整理
 
-- **触发器**：`$组长例会议题`、`$整理组长会议题`
-- **路径**：`/Users/sammilv/.workbuddy/skills/weekly-leader-meeting-agenda/SKILL.md`
-- **概述**：从钉钉间接证据中提炼组长例会议题并写入会议纪要文档。
+- 触发器：`$组长例会议题整理`
+- 路径：`/Users/sammilv/.workbuddy/skills/weekly-leader-meeting-agenda/SKILL.md`
+- 概述：当用户希望根据本周钉钉群沟通内容整理需要跟组长沟通的议题
 
-### 产品部周报汇总
+### weekly-report-summary
 
-- **触发器**：`$weekly-report-summary`
-- **路径**：`/Users/sammilv/.workbuddy/skills/weekly-report-summary/SKILL.md`
-- **概述**：将收到的个人周报归档为钉钉文档，再按模板生成部门周报汇总。
+- 触发器：`$weekly-report-summary`
+- 路径：`/Users/sammilv/.workbuddy/skills/weekly-report-summary/SKILL.md`
+- 概述：先将收到的周报归档为钉钉文档，再按"产品部周报汇总"模板生成部门周报汇总。
 
 ### WorkBuddy工作周报
 
-- **触发器**：`$WorkBuddy工作周报`
-- **路径**：`/Users/sammilv/.workbuddy/skills/weekly-workbuddy-work-summary/SKILL.md`
-- **概述**：从 WorkBuddy 本地记忆文件生成中文周工作总结。
+- 触发器：`$WorkBuddy工作周报`
+- 路径：`/Users/sammilv/.workbuddy/skills/weekly-workbuddy-work-summary/SKILL.md`
+- 概述：Generate a Chinese weekly work summary from the user's WorkBuddy activity
 
----
-
-## 触发描述评估
-
-当前所有技能的触发条件均较为清晰，未发现明显缺失或过弱的情况。
-
----
-
-## 已排除的外部 Skills
-
-以下 skills 为外部安装，未纳入本清单：
-
-- `computer-use` — 外部安装的系统级 skill
-- `processon-diagram-generator` — 外部安装的图表生成 skill
-- `dws` — 外部安装的钉钉能力 skill
