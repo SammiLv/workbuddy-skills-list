@@ -1,6 +1,6 @@
 # WorkBuddy 个人本地 Skills 清单
 
-最后更新时间：2026-06-03 18:40:53 CST
+最后更新时间：2026-06-04 18:41:24 CST
 
 本文件仅记录当前由用户自建或个人维护的 WorkBuddy skills。范围为 `/Users/sammilv/.workbuddy/skills` 下的自建 skills，不包含系统内置、插件、市场安装、缓存或外部托管的 skills。
 
@@ -20,13 +20,13 @@
 
 - 触发器：`$cross-ai-skill-sync`
 - 路径：`/Users/sammilv/.workbuddy/skills/cross-ai-skill-sync/SKILL.md`
-- 概述：当用户需要把某个本地 skill 的变更或 skills 根目录文件同步到其它 AI 工具的 skills 目录时使用。适用于 Codex、Cursor、WorkBuddy、OpenCode、Claude、Trae、Trae CN、Cline、Gemini 等本地工具之间同步同名 skill、同步 .gitignore 等根目录文件，或建立经常性的跨工具 skill 维护流程。
+- 概述：当用户需要把某个本地 skill 的变更或 skills 根目录文件同步到其它 AI 工具的 skills 目录时使用
 
 ### WorkBuddy工作日报
 
 - 触发器：`$WorkBuddy工作日报`
 - 路径：`/Users/sammilv/.workbuddy/skills/daily-workbuddy-work-summary/SKILL.md`
-- 概述：根据 WorkBuddy 每日活动记录生成中文工作日报，默认汇总最近一个有实际工作的前一天（从昨天开始回溯）。触发场景：用户要求总结昨天/今天/某日在 WorkBuddy 中完成的工作、生成工作日报、工作日志或每日回顾。
+- 概述：根据 WorkBuddy 每日活动记录生成中文工作日报，默认汇总最近一个有实际工作的前一天
 
 ### dingtalk-leader-meeting-topics
 

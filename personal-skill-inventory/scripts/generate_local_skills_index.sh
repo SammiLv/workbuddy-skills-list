@@ -119,7 +119,10 @@ concise_overview() {
       split_markers[21]=", identify";
       split_markers[22]=", and";
       split_markers[23]=" from a meeting time";
-      for (i=1; i<=23; i++) {
+      split_markers[24]="，适用于";
+      split_markers[25]="（";
+      split_markers[26]="。适用于";
+      for (i=1; i<=26; i++) {
         pos=index(text, split_markers[i]);
         if (pos > 0) {
           text=substr(text, 1, pos - 1);
