@@ -6,6 +6,10 @@ agent_created: true
 
 # ToC 注册数同步
 
+## 前置条件
+
+**必须先加载 `dws` skill**：本 skill 所有钉钉操作均通过 `dws` 命令执行（非 MCP 工具），执行前必须 `Skill(skill="dws")` 加载 dws 技能。
+
 ## 概述
 
 从钉钉文档「产品部部门周报汇总」读取【创新ToC用户增量明细】表格数据，按产品名称匹配，将「本周新增」→「本周新增注册数」、「总完成量」→「累计注册数」写入「产品部项目管理」AI表格的「2026年C端注册数」数据表。
@@ -19,11 +23,7 @@ agent_created: true
 
 **文档1 动态查找规则：**
 
-每次执行时，先调用 `mcp__dingtalk-doc-mcp__list_nodes`，在目录 `D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP` 下查找名称为 `产品部部门周报汇总` 的文件（精确匹配 name 字段），取其 nodeId 作为文档1的读取目标。
-
-```json
-{ "folderId": "D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP" }
-```
+每次执行时，先调用 `dws doc list --folder D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP --format json`，在返回的 `nodes` 列表中找到 `name` 为 `产品部部门周报汇总` 的文件，取其 `nodeId` 作为文档1的读取目标。
 
 若目录下存在多个同名文件，取 `updateTime` 最新的一个。若未找到，停止执行并告知用户。
 
@@ -57,11 +57,11 @@ agent_created: true
 
 ### 第一步：查找文档1
 
-调用 `mcp__dingtalk-doc-mcp__list_nodes`，folderId 为 `D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP`，在返回的节点列表中找到 name 为 `产品部部门周报汇总` 的文件，取其 nodeId。若有多个同名文件，取 updateTime 最新的。
+执行 `dws doc list --folder D1YKdxGX7EqVQZe2y71ZJe4QrZk95AzP --format json`，从返回的 `nodes` 数组中找到 `name` 为 `产品部部门周报汇总` 的文件，取其 `nodeId`。若有多个同名文件，取 `updateTime` 最新的。
 
 ### 第二步：读取文档1内容
 
-调用 `mcp__dingtalk-doc-mcp__get_document_content`，nodeId 使用第一步找到的值。
+执行 `dws doc read --node <NODE_ID> --format json`，从返回的 `markdown` 字段中获取文档正文。
 
 ### 第三步：解析【创新ToC用户增量明细】表格
 
@@ -95,40 +95,20 @@ agent_created: true
 
 ### 第五步：执行 update（有 recordId 时）
 
-对映射表中有 recordId 的产品，调用 `mcp__dingtalk-AIexcel-mcp__update_records` 批量更新：
-```json
-{
-  "baseId": "Y1OQX0akWm3g7G1DIozPoRl3JGlDd3mE",
-  "tableId": "kWZxlii",
-  "records": [
-    {
-      "recordId": "<映射表中的 recordId>",
-      "cells": {
-        "kd4WMay": "<本周新增数值>",
-        "5iILIri": "<总完成量数值>"
-      }
-    }
-  ]
-}
+对映射表中有 recordId 的产品，使用 `dws aitable record update` 批量更新：
+```bash
+dws aitable record update --base-id Y1OQX0akWm3g7G1DIozPoRl3JGlDd3mE --table-id kWZxlii \
+  --records '[{"recordId":"<recordId>","cells":{"kd4WMay":<本周新增>,"5iILIri":<总完成量>}}]' --format json
 ```
+
+> ⚠️ CLI 只接受 `--records` 一个 JSON 数组参数，不存在 `--record-id` / `--cells` 独立 flag。所有记录合并到一个 `--records` 数组一次性提交，单次最多 100 条。
 
 ### 第六步：执行 create（无 recordId 时）
 
-对映射表中 recordId 为空的产品，调用 `mcp__dingtalk-AIexcel-mcp__create_records` 新建：
-```json
-{
-  "baseId": "Y1OQX0akWm3g7G1DIozPoRl3JGlDd3mE",
-  "tableId": "kWZxlii",
-  "records": [
-    {
-      "cells": {
-        "8yVHZqg": "<产品名称>",
-        "kd4WMay": "<本周新增数值>",
-        "5iILIri": "<总完成量数值>"
-      }
-    }
-  ]
-}
+对映射表中 recordId 为空的产品，使用 `dws aitable record create` 新建：
+```bash
+dws aitable record create --base-id Y1OQX0akWm3g7G1DIozPoRl3JGlDd3mE --table-id kWZxlii \
+  --records '[{"cells":{"8yVHZqg":"<产品名称>","kd4WMay":<本周新增>,"5iILIri":<总完成量>}}]' --format json
 ```
 
 **创建成功后，立即将返回的 recordId 写入 skill.md 的映射表中**（使用 Edit 工具更新 skill.md 文件）。
