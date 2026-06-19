@@ -1,6 +1,6 @@
 # WorkBuddy 个人本地 Skills 清单
 
-最后更新时间：2026-06-18 18:52:07 CST
+最后更新时间：2026-06-19 18:46:06 CST
 
 本文件仅记录当前由用户自建或个人维护的 WorkBuddy skills。范围为 `/Users/sammilv/.workbuddy/skills` 下的自建 skills，不包含系统内置、插件、市场安装、缓存或外部托管的 skills。
 
@@ -32,7 +32,7 @@
 
 - 触发器：`$dingtalk-leader-meeting-topics`
 - 路径：`/Users/sammilv/.workbuddy/skills/dingtalk-leader-meeting-topics/SKILL.md`
-- 概述：使用 dws skill 回顾本周钉钉工作群沟通与个人聊天记录，识别需要与组长沟通的议题
+- 概述：use the dws skill to review this week's DingTalk group communication and personal chat records
 
 ### dingtalk-personal-weekly-report
 
@@ -50,7 +50,7 @@
 
 - 触发器：`$reserve-dingtalk-meeting`
 - 路径：`/Users/sammilv/.workbuddy/skills/reserve-dingtalk-meeting/SKILL.md`
-- 概述：根据会议时间和受邀人自动创建钉钉会议
+- 概述：automatically create a DingTalk meeting
 
 ### 同步C端注册数
 
@@ -74,5 +74,5 @@
 
 - 触发器：`$WorkBuddy工作周报`
 - 路径：`/Users/sammilv/.workbuddy/skills/weekly-workbuddy-work-summary/SKILL.md`
-- 概述：根据 WorkBuddy 活动记录生成中文周工作总结
+- 概述：Generate a Chinese weekly work summary from the user's WorkBuddy activity
 
