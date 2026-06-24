@@ -1,6 +1,6 @@
 # WorkBuddy 个人本地 Skills 清单
 
-最后更新时间：2026-06-19 18:46:06 CST
+最后更新时间：2026-06-24 16:35:56 CST
 
 本文件仅记录当前由用户自建或个人维护的 WorkBuddy skills。范围为 `/Users/sammilv/.workbuddy/skills` 下的自建 skills，不包含系统内置、插件、市场安装、缓存或外部托管的 skills。
 
@@ -75,4 +75,12 @@
 - 触发器：`$WorkBuddy工作周报`
 - 路径：`/Users/sammilv/.workbuddy/skills/weekly-workbuddy-work-summary/SKILL.md`
 - 概述：Generate a Chinese weekly work summary from the user's WorkBuddy activity
+
+## 待改进项
+
+以下 skills 的 `description` 或概述目前为英文，建议后续将 frontmatter `description` 优化为简洁中文，以便清单更准确：
+
+- `dingtalk-leader-meeting-topics`：当前概述为英文，建议改为中文一句话说明。
+- `reserve-dingtalk-meeting`：当前概述为英文，建议改为中文一句话说明。
+- `weekly-workbuddy-work-summary`：当前概述为英文，建议改为中文一句话说明。
 

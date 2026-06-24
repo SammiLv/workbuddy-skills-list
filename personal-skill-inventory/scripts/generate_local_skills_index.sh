@@ -44,7 +44,7 @@ is_self_built_skill() {
   base="$(basename "$skill_dir")"
 
   case "$base" in
-    .system|cache|plugins|plugin-cache|node_modules|dws|.*)
+    .system|cache|plugins|plugin-cache|node_modules|dws|processon-diagram-generator|processon-diagramgen|.*)
       return 1
       ;;
   esac
