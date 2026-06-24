@@ -1,6 +1,6 @@
 # WorkBuddy 个人本地 Skills 清单
 
-最后更新时间：2026-06-24 16:35:56 CST
+最后更新时间：2026-06-24 18:42:57 CST
 
 本文件仅记录当前由用户自建或个人维护的 WorkBuddy skills。范围为 `/Users/sammilv/.workbuddy/skills` 下的自建 skills，不包含系统内置、插件、市场安装、缓存或外部托管的 skills。
 
@@ -32,7 +32,7 @@
 
 - 触发器：`$dingtalk-leader-meeting-topics`
 - 路径：`/Users/sammilv/.workbuddy/skills/dingtalk-leader-meeting-topics/SKILL.md`
-- 概述：use the dws skill to review this week's DingTalk group communication and personal chat records
+- 概述：使用 dws skill 回顾本周钉钉工作群沟通与个人聊天记录，整理需要与组长沟通的议题
 
 ### dingtalk-personal-weekly-report
 
@@ -50,13 +50,13 @@
 
 - 触发器：`$reserve-dingtalk-meeting`
 - 路径：`/Users/sammilv/.workbuddy/skills/reserve-dingtalk-meeting/SKILL.md`
-- 概述：automatically create a DingTalk meeting
+- 概述：根据会议时间和参会人自动创建钉钉会议，默认补充会议标题，查询并预订合适会议室，邀请参会人并返回会议详情。
 
 ### 同步C端注册数
 
 - 触发器：`$同步C端注册数`
 - 路径：`/Users/sammilv/.workbuddy/skills/toc-registration-sync/SKILL.md`
-- 概述：将钉钉文档「产品部部门周报汇总」中【创新ToC用户增量明细】表格的「本周新增」和「总完成量」数据
+- 概述：将钉钉文档「产品部部门周报汇总」中【创新ToC用户增量明细】表格的「本周新增」和「总完成量」数据同步到「产品部项目管理」AI表格「2026年C端注册数」表的「本周新增注册数」和「累计注册数」字段
 
 ### 组长例会议题整理
 
@@ -74,13 +74,5 @@
 
 - 触发器：`$WorkBuddy工作周报`
 - 路径：`/Users/sammilv/.workbuddy/skills/weekly-workbuddy-work-summary/SKILL.md`
-- 概述：Generate a Chinese weekly work summary from the user's WorkBuddy activity
-
-## 待改进项
-
-以下 skills 的 `description` 或概述目前为英文，建议后续将 frontmatter `description` 优化为简洁中文，以便清单更准确：
-
-- `dingtalk-leader-meeting-topics`：当前概述为英文，建议改为中文一句话说明。
-- `reserve-dingtalk-meeting`：当前概述为英文，建议改为中文一句话说明。
-- `weekly-workbuddy-work-summary`：当前概述为英文，建议改为中文一句话说明。
+- 概述：根据用户的 WorkBuddy 活动记录生成中文工作周报，默认汇总本周内容并在当前会话中输出
 

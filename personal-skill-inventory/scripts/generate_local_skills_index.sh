@@ -113,16 +113,17 @@ concise_overview() {
       split_markers[15]="，支持";
       split_markers[16]="，包括";
       split_markers[17]="，并";
-      split_markers[18]="，同步更新到";
-      split_markers[19]="。当用户说";
-      split_markers[20]=". The skill";
-      split_markers[21]=", identify";
-      split_markers[22]=", and";
-      split_markers[23]=" from a meeting time";
-      split_markers[24]="，适用于";
-      split_markers[25]="（";
-      split_markers[26]="。适用于";
+      split_markers[18]="。当用户说";
+      split_markers[19]=". The skill";
+      split_markers[20]=", identify";
+      split_markers[21]=", and";
+      split_markers[22]=" from a meeting time";
+      split_markers[23]="，适用于";
+      split_markers[24]="（";
+      split_markers[25]="。适用于";
+      split_markers[26]="，同步更新到";
       for (i=1; i<=26; i++) {
+        if (!(i in split_markers)) continue;
         pos=index(text, split_markers[i]);
         if (pos > 0) {
           text=substr(text, 1, pos - 1);

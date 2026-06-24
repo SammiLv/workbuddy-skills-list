@@ -1,6 +1,6 @@
 ---
 name: dingtalk-leader-meeting-topics
-description: Use when the user wants to use the dws skill to review this week's DingTalk group communication and personal chat records, identify topics they need to discuss with group leaders, and send the final topic summary to the current user's DingTalk as a direct message. Trigger on requests such as 组长例会议题, 每周一下午组长例会, 钉钉群沟通总结, 个人聊天议题筛选, or sending leader-meeting topics to myself in DingTalk; use dws as the DingTalk capability entrypoint and do not use DingTalk Docs as the output target.
+description: 使用 dws skill 回顾本周钉钉工作群沟通与个人聊天记录，整理需要与组长沟通的议题，并通过钉钉单聊发送给当前用户。触发词包括“组长例会议题”“每周一下午组长例会”“钉钉群沟通总结”“个人聊天议题筛选”。
 ---
 
 # 钉钉组长例会议题

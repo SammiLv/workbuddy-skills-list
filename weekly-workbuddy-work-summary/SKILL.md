@@ -1,6 +1,6 @@
 ---
 name: WorkBuddy工作周报
-description: Generate a Chinese weekly work summary from the user's WorkBuddy activity, defaulting to the current week, and display it in the current conversation. Use when the user asks to summarize what they did in WorkBuddy this week, last week, over a date range, or asks for a WorkBuddy weekly report, weekly review, work log, or recap based on WorkBuddy sessions.
+description: 根据用户的 WorkBuddy 活动记录生成中文工作周报，默认汇总本周内容并在当前会话中输出。适用于总结本周、上周或指定日期范围在 WorkBuddy 中的工作。
 ---
 
 # Weekly WorkBuddy Work Summary
