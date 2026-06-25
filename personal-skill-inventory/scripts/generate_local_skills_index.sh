@@ -8,9 +8,10 @@ DEFAULT_OUTPUT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_FILE="${DEFAULT_OUTPUT_DIR}/LOCAL_SKILLS_INDEX.md"
 TIMESTAMP="$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S %Z')"
 TMP_FILE="$(mktemp)"
+WEAK_DESCRIPTIONS_TMP="$(mktemp)"
 
 cleanup() {
-  rm -f "$TMP_FILE"
+  rm -f "$TMP_FILE" "$WEAK_DESCRIPTIONS_TMP"
 }
 
 trap cleanup EXIT
@@ -175,7 +176,8 @@ mkdir -p "$(dirname "$OUTPUT_FILE")"
       name="$(basename "$skill_dir")"
     fi
 
-    overview="$(concise_overview "$(description_for "$skill_file")")"
+    raw_description="$(description_for "$skill_file")"
+    overview="$(concise_overview "$raw_description")"
     trigger="\$${name}"
 
     printf '### %s\n\n' "$name"
@@ -184,7 +186,19 @@ mkdir -p "$(dirname "$OUTPUT_FILE")"
     printf -- '- 概述：%s\n\n' "$(markdown_escape "$overview")"
 
     found_count=$((found_count + 1))
+
+    if [ -z "$raw_description" ] || [ "$overview" = '该 skill 已被识别，但尚未配置清晰 description；请根据对应 SKILL.md 补充。' ]; then
+      printf -- '- `%s`（路径：`%s`）\n' "$(inline_code_escape "$trigger")" "$(inline_code_escape "$skill_file")" >> "$WEAK_DESCRIPTIONS_TMP"
+    fi
   done < <(find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
+
+  printf '## 触发描述检查\n\n'
+  if [ -s "$WEAK_DESCRIPTIONS_TMP" ]; then
+    printf '以下 skills 的触发描述缺失或过弱，建议补充或精简 frontmatter 中的 `description`，使清单更准确：\n\n'
+    cat "$WEAK_DESCRIPTIONS_TMP"
+  else
+    printf '当前所有已记录的自建 skills 均配置了清晰的 `description`，未发现触发描述缺失或过弱的情况。后续新增 skill 时，建议保持 frontmatter 中 `description` 的简洁与触发明确性。\n'
+  fi
 } > "$TMP_FILE"
 
 mv "$TMP_FILE" "$OUTPUT_FILE"

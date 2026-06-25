@@ -1,6 +1,6 @@
 # WorkBuddy 个人本地 Skills 清单
 
-最后更新时间：2026-06-24 18:42:57 CST
+最后更新时间：2026-06-25 18:41:55 CST
 
 本文件仅记录当前由用户自建或个人维护的 WorkBuddy skills。范围为 `/Users/sammilv/.workbuddy/skills` 下的自建 skills，不包含系统内置、插件、市场安装、缓存或外部托管的 skills。
 
@@ -76,3 +76,6 @@
 - 路径：`/Users/sammilv/.workbuddy/skills/weekly-workbuddy-work-summary/SKILL.md`
 - 概述：根据用户的 WorkBuddy 活动记录生成中文工作周报，默认汇总本周内容并在当前会话中输出
 
+## 触发描述检查
+
+当前所有已记录的自建 skills 均配置了清晰的 `description`，未发现触发描述缺失或过弱的情况。后续新增 skill 时，建议保持 frontmatter 中 `description` 的简洁与触发明确性。
