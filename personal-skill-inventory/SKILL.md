@@ -1,5 +1,5 @@
 ---
-name: personal-skill-inventory
+name: 个人技能清单
 description: 当用户想列出、审计、总结、记录或更新当前 AI 工具的个人 skills 清单时使用，包括每个 skill 的名称、位置、概述和触发条件。触发请求包括：“我有哪些个人 skill”、“记录我创建的 skills”、“列出每个 skill 的概述和触发器”、“整理 skill 清单”、“更新个人 skill 目录”，或要求整理当前 AI 工具的 skills。
 ---
 

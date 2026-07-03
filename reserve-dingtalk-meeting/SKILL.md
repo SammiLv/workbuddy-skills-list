@@ -1,5 +1,5 @@
 ---
-name: reserve-dingtalk-meeting
+name: 预约钉钉会议
 description: 根据会议时间和参会人自动创建钉钉会议，默认补充会议标题，查询并预订合适会议室，邀请参会人并返回会议详情。
 ---
 

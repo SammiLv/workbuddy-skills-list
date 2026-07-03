@@ -1,6 +1,6 @@
 # WorkBuddy 个人本地 Skills 清单
 
-最后更新时间：2026-07-02 18:40:42 CST
+最后更新时间：2026-07-03 18:44:47 CST
 
 本文件仅记录当前由用户自建或个人维护的 WorkBuddy skills。范围为 `/Users/sammilv/.workbuddy/skills` 下的自建 skills，不包含系统内置、插件、市场安装、缓存或外部托管的 skills。
 
@@ -40,15 +40,15 @@
 - 路径：`/Users/sammilv/.workbuddy/skills/dingtalk-personal-weekly-report/SKILL.md`
 - 概述：当用户需要基于钉钉数据生成当前用户一周工作总结时使用。
 
-### personal-skill-inventory
+### 个人技能清单
 
-- 触发器：`$personal-skill-inventory`
+- 触发器：`$个人技能清单`
 - 路径：`/Users/sammilv/.workbuddy/skills/personal-skill-inventory/SKILL.md`
 - 概述：当用户想列出、审计、总结、记录或更新当前 AI 工具的个人 skills 清单时使用
 
-### reserve-dingtalk-meeting
+### 预约钉钉会议
 
-- 触发器：`$reserve-dingtalk-meeting`
+- 触发器：`$预约钉钉会议`
 - 路径：`/Users/sammilv/.workbuddy/skills/reserve-dingtalk-meeting/SKILL.md`
 - 概述：根据会议时间和参会人自动创建钉钉会议，默认补充会议标题，查询并预订合适会议室，邀请参会人并返回会议详情。
 
@@ -64,9 +64,9 @@
 - 路径：`/Users/sammilv/.workbuddy/skills/weekly-leader-meeting-agenda/SKILL.md`
 - 概述：当用户希望根据本周钉钉群沟通内容整理需要跟组长沟通的议题
 
-### weekly-report-summary
+### 产品部周报汇总
 
-- 触发器：`$weekly-report-summary`
+- 触发器：`$产品部周报汇总`
 - 路径：`/Users/sammilv/.workbuddy/skills/weekly-report-summary/SKILL.md`
 - 概述：先将收到的周报归档为钉钉文档，再按"产品部周报汇总"模板生成部门周报汇总。
 

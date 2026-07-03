@@ -1,6 +1,6 @@
 ---
-name: weekly-report-summary
-description: 当用户调用 $weekly-report-summary 或使用“产品部周报汇总”触发短语时触发。先将收到的周报归档为钉钉文档，再按"产品部周报汇总"模板生成部门周报汇总。
+name: 产品部周报汇总
+description: 当用户调用 $产品部周报汇总 或使用“产品部周报汇总”触发短语时触发。先将收到的周报归档为钉钉文档，再按"产品部周报汇总"模板生成部门周报汇总。
 agent_created: true
 ---
 
