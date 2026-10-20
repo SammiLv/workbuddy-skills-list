@@ -1,7 +1,8 @@
 {
   "slug": "processon-diagram-generator",
-  "name": "processon-diagram-generator",
-  "version": "2.5.2",
-  "installedAt": 1782290075482,
-  "source": "skillhub"
+  "name": "ProcessOn流程图表生成专家",
+  "version": "2.5.3",
+  "installedAt": 1791971981263,
+  "source": "skillhub",
+  "iconDownloadFailedAt": 1792404302739
 }

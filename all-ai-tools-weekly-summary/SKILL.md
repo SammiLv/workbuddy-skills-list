@@ -124,6 +124,8 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
       | grep -v '/subagents/' | grep -E '/([0-9a-f-]+)/\1\.jsonl$' | head -30
     grep -h '<timestamp>\|<user_query>' <文件路径列表> | head -300
     ```
+  - **⚠️ grep 污染（2026-10-16 实测）**：直接 `grep '<timestamp>\|<user_query>'` 会被**会话正文里出现的这两个字面量**污染（例如某次会话让 AI 写过解析 `<timestamp>` 的脚本，脚本源码整段进入 jsonl，grep 会把整行回吐成几十 KB，并可能让真正的 user_query 被淹没或被误判为命中）。判断本周是否有记录、以及统计命中数时，**优先用 Python 逐行读取、只解析 `<user_query>...</user_query>` 块并正则提取时间戳**，不要依赖裸 grep。
+  - Cursor 时间戳格式为 `Friday, Aug 7, 2026, 4:19 PM (UTC+8)`（月名英文 + 12 小时制 + UTC 偏移），必须按此格式解析，不要按 GMT+8 或 24 小时制处理。
 
 - **Claude Code**
   - **`history.jsonl` 的 `timestamp` 是毫秒整数，禁止用 `grep '2026-05-xx'` 过滤，否则会命中 0 条。**
@@ -132,13 +134,25 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
   - 第三步：`python3 "$SKILL_DIR/scripts/scan-claude-code-memory.py"`。记忆文件为强制校验步骤，必须执行。
 
 - **Codex**
-  - 读 `~/.codex/session_index.jsonl`，按 `updated_at`（ISO 8601）筛选 session id，再读 `~/.codex/sessions/<id>.jsonl`。
-  - 命令（日期模式按第 1 步范围替换）：
+  - **数据源优先级（2026-09-18 实测更新，务必按此顺序）：**
+    1. **首选 `~/.codex/thread_history_1.sqlite` 的 `thread_items` 表**（真实会话正文所在）：
+       - `item_type='userMessage'` → 用户请求；`item_type='agentMessage'` → 助手结论/产出
+       - 时间字段 `created_at_ms`（毫秒），先算好 `START_MS`/`END_MS` 再筛选，禁止 grep 日期字符串
+       - `substr(item_json,1,300)` 控制读取量
+    2. 线程元信息取 `~/.codex/state_5.sqlite` 的 `threads` 表：`id` / `title` / `cwd` / `updated_at`（秒）
+    3. `~/.codex/session_index.jsonl` **已停更**（实测最后条目为 2026-09-09），仅在 sqlite 无数据时降级使用
+  - **禁止把 `~/.codex/sessions/<YYYY>/<MM>/<DD>/*.jsonl` 当作真实会话来源**：该目录可能只留下 `thread_source=guardian_review` 的审查子会话（`session_meta.payload.source.subagent.other == 'guardian'`），其 `event_msg.user_message` 是喂给审查器的转写文本，不是用户原始请求。只读该目录会得到"看起来有记录但内容是审查提示"的假阳性。
+  - 命令（`d` 为日期，按第 1 步范围替换）：
     ```bash
-    grep '<日期范围>' ~/.codex/session_index.jsonl | head -30
-    grep -m 60 '"role":"user"\|"content"' ~/.codex/sessions/<id>.jsonl | head -150
-  - **关键词扩展搜索**：从 session_index 提取全量会话标题后，做一次概念关键词二次扫描（DWS\|CLI\|dws\|升级\|迁移\|替换\|权限\|授权\|改用\|API），命中标题的会话在读取内容时分配更多关注（上限仍为 150 行），避免重要工作因标题措辞不同而被遗漏。
+    sqlite3 ~/.codex/thread_history_1.sqlite "SELECT datetime(created_at_ms/1000,'unixepoch','+8 hours'), substr(item_json,1,300) FROM thread_items WHERE item_type='userMessage' AND created_at_ms >= START_MS AND created_at_ms <= END_MS ORDER BY created_at_ms LIMIT 60;"
+    sqlite3 ~/.codex/state_5.sqlite "SELECT id, title, cwd FROM threads WHERE updated_at >= START_S ORDER BY updated_at DESC LIMIT 20;"
     ```
+  - **必须排除的两类假阳性（2026-10-10 实测）**：
+    1. **批量导入的 Claude Code 会话**：`thread_history_1.sqlite` 里存在大量 `item_type='userMessage'` 记录，其 `created_at_ms` 全部落在**同一个毫秒值**（如某次导入时刻），且对应 `state_5.sqlite` 中 threads 的 `cwd` 指向 `ClaudeCode工作区/...`、标题形如 `<command-name>/model</command-name>`、`Imported session`。这些是历史 Claude Code 会话被导入的记录，不是本周 Codex 使用。判定法：按 `created_at_ms` 分组，某毫秒值的条数远大于 1（如 >10）即视为导入批次，剔除。
+    2. **Guardian 审查子会话**：标题为 `Guardian review` 的线程，其 `userMessage` 文本以 `The following is the Codex agent history added since your last a...` 开头，是喂给审查器的转写文本，不是用户请求，一律剔除。
+  - **真实会话判定**：保留 `created_at_ms` 时间戳分散（每条不同毫秒）且 `item_json` 中带 `clientId` 非 null 的线程，即真实人机对话。
+  - **记录数口径**：Codex 以剔除上述两类后、`thread_items` 命中时间范围的 `userMessage` 条数为准；同一 `thread_id` 的多轮对话合并为 1 个工作线（多日连续推进的主题合并为同一工作主题）。
+  - **关键词扩展搜索**：对提取到的用户消息做一次概念关键词二次扫描（DWS\|CLI\|dws\|升级\|迁移\|替换\|权限\|授权\|改用\|API），命中内容分配更多关注，避免重要工作因措辞不同而被遗漏。
 
 - **OpenCode**
   - **优先查 `~/.local/share/opencode/opencode.db` 的 `session` 表**；`time_created` 为毫秒时间戳，禁止 grep 日期字符串。
@@ -167,6 +181,9 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
     sqlite3 ~/.workbuddy/workbuddy.db \
       "SELECT id, title, cwd FROM sessions WHERE created_at >= START_MS AND created_at <= END_MS ORDER BY created_at DESC LIMIT 30;"
     ```
+  - **命中数可能极少是正常的**：WorkBuddy 的记录基本由自动化任务产生，若本周只跑了本 skill 的定时任务，`sessions` 表可能只有 1 条（即本次自动化会话本身）。该条仍算有效记录，不要把工具判定为"无有效记录"。
+  - **补充判据**：除 `created_at` 外可用 `updated_at` / `last_activity_at` 交叉核对，避免把跨周启动、本周仍在活跃的长会话漏掉。
+  - **环境限制（2026-10-10 实测）**：`~/.workbuddy/projects/**` 在本沙盒内被拒绝访问（`find` / `ls` / glob 均不可用），因此 WorkBuddy 只能取 `workbuddy.db` 的 `sessions` 表 + 各工作区 `.workbuddy/memory/*.md`；jsonl 兜底步骤在本环境无法执行，不要因失败而重试。
 
 - **其他 AI 工具**
   - 先抽样读 1 个文件前 30 行确认字段格式，再用 grep 按内部时间戳过滤；遵守硬性读取上限。
@@ -207,7 +224,9 @@ description: 从本地 AI 工具会话记录生成一周工作总结，支持单
 
 ### 第 5 步：汇总
 
-- 先按工具整理证据，再按工作主题合并，不按日期逐条罗列。
+- 先按工具整理证据，再按**工作主题**合并，不按日期逐条罗列。
+- **主题粒度 = 项目维度（2026-10-10 用户明确要求）**：同一项目/仓库（如 depot-clean、operapage-web）下的多个工作项必须合并为 1 个主题，主题命名体现项目名，格式如「产品管理平台（depot-clean）迭代优化」「商城活动页搭建器（operapage-web）联调与发布流程建设」；禁止把同一项目的 KPI 修复、白屏修复、接口联调等拆成多个并列主题。合并后「概要」内用分号串联各工作项，「产出」「验证」内逐项列举。
+- 纯自动化任务（无项目归属，如本 skill 自身的定时执行）可单独作为 1 个主题放在最后。
 - **单工具报告**：省略"按工具概览"，直接输出主题列表。
 - **多工具 / all 报告**：保留"按工具概览"；若某工具目录存在但无有效记录，仅在输出末尾附注"已检查但无有效记录的工具：{列表}"，不写入正文。
 - 对证据不足的结论使用"看起来""可能"等表述，不做无依据推断。

@@ -29,7 +29,11 @@ description: 当用户需要基于钉钉数据生成当前用户一周工作总�
 
 全部钉钉数据采集都必须通过 dws 完成，包括联系人、日程、会议纪要、文档、表格、AI 表格、群聊、单聊、@我和我个人聊天窗口 信息。不要改用非 dws 方式采集数据。
 
+唯一例外：当 dws 确实不可用（命令缺失、未认证且无法刷新、接口持续报错）时，改用**钉钉 MCP 服务**兜底，并按下方「dws 不可用时的 MCP 兜底路径」执行。注意 MCP 侧没有群聊/单聊/@我 与 AI 听记的读取能力，这两类来源必须整体写入「未覆盖/受限来源」。不得使用 dws / MCP 之外的任何方式（如网页抓取、非钉钉工具）采集钉钉数据。
+
 不要采集、汇总或引用待办、OA 审批和钉钉日志。即使 dws 暴露相关能力，也不要把待办、OA 审批或日志作为本 skill 的证据来源；如果其他来源中偶然出现审批或待办字样，只能在与核心业务推进直接相关时作为聊天/文档上下文概括，不按审批或待办来源展开。
+
+例外（仅当用户或自动化任务在提示词中明确要求“覆盖待办、OA 审批”时）：可以执行只读探测（`dws todo task list --status false`、`dws oa approval list-pending/list-forms/list-executed/list-submitted` 等），但其结果只能用于在「未覆盖/受限来源」中说明可访问性与限制，不得作为主要成果写进第 1-4 板块；钉钉日志始终不采集。
 
 每次运行尽量覆盖以下来源：
 
@@ -48,6 +52,57 @@ description: 当用户需要基于钉钉数据生成当前用户一周工作总�
 4. 每个模板章节必须做存在性检查：生成正文前后都要检查 `0. 本周概览`、`1. 发现与解决问题`、`2. 业务与培训`、`3. 管理与协作`、`4. 学习与创新`、`证据台账`、`未覆盖/受限来源` 是否存在；写入钉钉文档后必须通过 dws 回读再次检查。缺任一章节时必须修正后再交付。
 5. 每条纳入规则必须能解释来源和原因：证据台账中的每条工作事项必须能说明“来自哪个 dws 来源 / 为什么归属于当前用户 / 为什么纳入该分类 / 形成了什么结果或限制”。无法解释来源或归属的材料只能作为线索，不能写成工作成果。
 6. 分段采集要保留台账：对日程、听记、文档、表格、AI 表格、群聊、单聊和 @我分别记录采集命令或检索口径、页数/范围、源数量、可用数量、纳入数量和限制。最终正文不必暴露所有命令，但必须能在“证据台账”或“未覆盖/受限来源”中体现关键统计和限制。
+7. 聊天消息必须按小时间窗重复采集：`dws chat message list-all` 存在服务端单次查询总量上限，单个时间范围单次查询可能提前返回 `hasMore=false` 但结果仍不完整。必须按天（必要时按半天）分别采集并去重；最终在受限来源中说明已用窗口数、页数与去重后条数。**批量循环时必须先把结果落盘为独立文件，文件名中的变量要用 `${d}`、`${P}` 显式界定**：写成 `"chat_10$d_$P.json"` 时 shell 会把 `$d_` 解析成变量 `d_`（恒为空），导致每一天的结果互相覆盖，只剩最后一天的数据且表面上「采集成功」。落盘后应核对每日文件数与消息数是否符合预期，确认无误再进入汇总。
+8. 时间参数口径必须与命令匹配（高频错误）：`dws chat message list-all` 的 `--start/--end` 只接受 `yyyy-MM-dd HH:mm:ss` 字符串，传入 epoch 毫秒不会报错，但会**静默忽略时间过滤并返回最近的消息**，导致采集结果看似正常实则整体错位；`dws minutes list all` 的 `--start/--end` 才是 epoch 毫秒；`dws calendar event list` 的 `--start/--end` 是 ISO-8601。采集前必须逐命令确认口径，并对返回消息的 `createTime` 做范围抽检，确认确实落在目标窗口内。
+
+## dws 采集命令要点
+
+以下为实测确认的输出结构与调用口径，可减少试错：
+
+- `dws contact user get-self`：确认当前用户姓名、userId、部门与职务，作为总结对象的唯一依据。
+- `dws calendar event list --start/--end`（ISO-8601）：返回 `result.events`；检查 `result.hasMore`。
+- `dws minutes list all --start/--end`（**epoch 毫秒**）：返回 `result.itemList`，字段含 `uuid`、`title`、`startTimeISO`、`keywordsInfo`；`dws minutes get summary --uuid` / `get todos --uuid` 取摘要与行动项。`--next-token` 翻页；`itemList` 为空且 `hasMore=false` 表示确已读完。
+- `dws doc search --query`：返回体在**顶层**（无 `result` 包裹），字段为 `documents`、`hasMore`、`nextPageToken`。分页游标 flag 的正确名称是 **`--page-token`**（不是 `nextPageToken`，传错会报 unknown flag），且 `--page-size` 上限为 **30**（默认 10，超过 30 报“pageSize 必须在 1 到 30 之间”）。翻页时把上页返回的 `nextPageToken` 传给 `--page-token`，直到 `hasMore=false`。
+- `dws doc search --visited-from/--visited-to`（epoch 毫秒）+ `--query ""`：**本 skill 最有效的文档发现口径**，可直接列出当前用户在时间窗内访问过的全部文档并完整分页（实测 7 天窗口可稳定收敛到 hasMore=false）。优先用它建立文档清单，再用 `--created-from/--created-to`（新建时间）、`--creator-uids`（创建人，本人 userId 来自 get-self）、`--editor-uids`、`--mentioned-uids` 做交叉补充。关键词检索容易漏，不要把它当唯一入口。
+- `dws doc read --node`：正文在**顶层** `markdown` 字段（`--content-format markdown`），不在 `result` 内；回读校验时注意 markdown 中形如 `0.` 的标题序号会被转义为 `0\.`，精确匹配前需先还原。
+- **文档节点类型必须先判后读（高频踩坑）**：`dws doc read` 只对 ALIDOC（`extension=adoc`）有效，遇到 `dlink`（外部链接/跨系统引用）、`docx`（非 ALIDOC 文档）、`axls`（钉钉表格）会直接返回业务错误。应先用 `dws doc list` 或 `doc search` 返回的 `extension`/`nodeType` 分流：`adoc` → `doc read`；`axls` → `sheet range read`；`dlink`/`docx` 不重试，直接记入受限来源。
+- `dws doc create --name <标题> --folder <文件夹 nodeId> --content-file <本地 md 路径> --content-format markdown`：新建文档并一次性写入正文。长文档优先用 `--content-file` 而非 `--content`，可避免转义与命令行长度问题。
+- `dws doc delete --node <nodeId> --yes`：删除走回收站（30 天内可恢复）。删完后应重新 `dws doc list` 复查同名数归零，再创建新文档。
+- `dws sheet range read --node`：返回 `values`/`displayValues` 与 `hasMore`，需记录已读行数。
+- `dws aitable base search / base get / table list`：仅能拿到 Base 与数据表清单，需逐表读记录才能统计源行数；若只做清单层采集，必须在受限来源中写明。`dws aitable record list --page-size` 上限为 100，超过会返回 `INVALID_LIMIT`。
+- `dws chat message list-all --start "yyyy-MM-dd HH:mm:ss" --end "yyyy-MM-dd HH:mm:ss" --limit 50 --cursor "0"`：首页 `--cursor` 传 `"0"`；返回 `result.conversationMessagesList`（按会话分组，每组含 `messages`）与 `hasMore`、`nextCursor`。翻页终止条件是 `hasMore=false` 或 `nextCursor` 与上一页相同。
+- `dws chat message list-mentions`：无命中时只返回 `hasMore`/`nextCursor`，**不含** `messages` 字段；不要据此推断存在但不可读，应直接记录为“本周窗口内无 @我 消息”。
+- `dws chat conversation-info --group <openConversationId>`：会话标题位于 `result.conversationInfo.title`；部分会话服务端不返回标题，需在受限来源中说明无法命名的会话数。
+
+## dws 不可用时的 MCP 兜底路径
+
+全部采集仍以 dws 为首选。**仅当 dws 确实不可用**（命令不存在、OAuth token 失效且刷新失败、`dws auth status` 返回未认证、接口持续报业务错误等）时，才切换到钉钉 MCP 服务兜底，不要因为单条命令偶发失败就整体换路。
+
+切换前先判定：先跑 `dws auth status`，若 `authenticated=false` 或 `token_valid=false` 且 `refresh_token_valid` 也失效，则提示用户重新授权（`dws auth login` 本机扫码 / `dws auth login --device` 无头环境 / `dws auth reset` 重置后再登录）；只有用户无法授权时才走 MCP。
+
+**dws → MCP 能力映射（实测）**
+
+| 数据源 | dws 命令 | MCP 兜底工具 | 可用性 |
+|--------|----------|--------------|--------|
+| 联系人/身份 | `dws contact user get-self` | `mcp__dingtalk-contacts-mcp__get_current_user_profile` | 可用，返回字段与 get-self 一致 |
+| 日程 | `dws calendar event list`（ISO-8601） | `mcp__dingtalk-calendar-mcp__list_calendar_events`（**epoch 毫秒**） | 可用，且额外返回会议室、会议号与会议链接 |
+| 文档 | `dws doc search / doc read` | `mcp__dingtalk-doc-mcp__list_nodes / search_documents / get_document_content` | 可用 |
+| 表格 | `dws sheet range read` | `mcp__dingtalk-excel-mcp__get_range / get_all_sheets` | 可用 |
+| AI 表格 | `dws aitable *` | `mcp__dingtalk-AIexcel-mcp__list_bases / get_tables / query_records` | 可用 |
+| 待办（仅只读探测） | `dws todo task list` | `mcp__dingtalk-ToDo-mcp__get_user_todos`（**必填 pageSize/pageNum/roleTypes**） | 可用，但**口径与 dws 不同**，见下方第 7 条 |
+| OA 审批（仅只读探测） | `dws oa approval *` | `mcp__dingtalk-OAapproval-mcp__list_pending_approvals / get_todo_tasks` | 可用，`list_pending_approvals` 必填 starTime/endTime（epoch 毫秒） |
+| **群聊/单聊/@我** | `dws chat message list-all / list-mentions` | **无对应 MCP 工具** | **不可用** |
+| **会议纪要/AI 听记** | `dws minutes list all / get summary` | **无对应 MCP 工具** | **不可用** |
+
+**兜底模式的硬性要求**
+
+1. 走 MCP 时，**群聊、单聊、@我 与 AI 听记/会议纪要一律无法采集**（MCP 侧仅有 `dingtalk-robotmessage-mcp` 发送类与 `dingtalk-groupchat-mcp` 建群类工具，均为写操作，不能读历史消息）。必须把这四类来源整体写入「未覆盖/受限来源」，明确写出"因 dws 不可用、MCP 侧无对应读取能力，本周聊天与会议纪要证据缺失"，并在正文中避免任何依赖聊天证据的结论。
+2. 走 MCP 时必须在「未覆盖/受限来源」中写明切换原因（dws 具体报错或未认证状态）、切换时间、以及已用 MCP 工具清单。
+3. MCP 调用返回的 ID 为技术细节，写入正文与台账时以实体名称呈现（见 MCP 工具自带的面向用户指引）。
+4. MCP 分页同样必须读完：`list_nodes` 的 `nextPageToken`、`query_records` 的 `nextCursor`、`list_calendar_events` 的 `cursor` 都要继续翻页，直到无更多数据。
+5. MCP 与 dws 的时间参数口径不同：`list_calendar_events` 用 epoch 毫秒（不是 ISO-8601），其余见各工具入参说明。
+6. 一旦 dws 恢复可用，后续运行必须回到 dws 主路径，不要把 MCP 兜底当成长期默认。
+7. **待办口径差异（实测）**：`mcp__dingtalk-ToDo-mcp__get_user_todos` 返回的是**审批类待办卡片**（字段含 `finalStatusStage`、`taskId`，如"XX提交的报销/请假/用印申请"），窗口内可命中大量命中项；而 `dws todo task list --status false` 返回的是**个人自建待办**，口径完全不同。两者不可互相替代、也不可混算为同一"待办"来源。走 MCP 时须在「未覆盖/受限来源」中写明：待办数据源为审批类待办卡片，与 dws 个人待办口径不一致；无论哪种口径，待办与 OA 审批均只做只读探测，**不写入正文四个分类板块**。
 
 ## 群聊和单聊采集规则
 
